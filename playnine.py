@@ -163,16 +163,118 @@ class Player():
     def check_card(self, card):
         #will need later
         pass
+        
+
+
+class User(Player):
+    def __init__(self):
+        super(User, self).__init__()
+
+    def flip_two(self):
+        col = int(input("Enter col of card to flip ")) - 1
+        while col < 0 or col > 3:
+            print("Must be between 1 and 4")
+            col = int(input("Enter col of card to flip ")) - 1
+
+        row = int(input("Enter row of card to flip ")) - 1
+        while row < 0 or row > 1:
+            print("Must be between 1 and 2")
+            row = int(input("Enter row of card to flip ")) - 1
+
+        col2 = int(input("Enter col of second card to flip ")) - 1
+        while col2 < 0 or col2 > 3:
+            print("Must be between 1 and 4")
+            col2 = int(input("Enter col of card to flip ")) - 1
+
+        row2 = int(input("Enter row of second card to flip ")) - 1
+        while row2 < 0 or row2 > 1:
+            print("Must be between 1 and 2")
+            row2 = int(input("Enter row of card to flip ")) - 1
+
+        while(col == col2 and row == row2):
+            print("You need to flip 2 different cards")
+            col2 = int(input("Enter col of second card to flip ")) - 1
+            while col2 < 0 or col2 > 3:
+                print("Must be between 1 and 4")
+                col2 = int(input("Enter col of card to flip ")) - 1
+
+            row2 = int(input("Enter row of second card to flip ")) - 1
+            while row2 < 0 or row2 > 1:
+                print("Must be between 1 and 2")
+                row2 = int(input("Enter row of card to flip ")) - 1
+
+        self.board.cards[col][row].flip()
+        self.board.cards[col2][row2].flip()
+
+    def take_turn(self, deck, discarded):
+        draw_card = input("Enter draw to draw a card, or discard to use the discarded card ")
+        while draw_card.lower() != "discard" and draw_card.lower() != "draw":
+            print("Invalid input")
+            draw_card = input("Enter draw to draw a card, or discard to use the discarded card ")
+        if draw_card.lower() == "draw":
+            drawn = deck.draw()
+            print("You drew " + str(drawn.visible_value))
+            keep = input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ")
+            while keep.lower() != "keep" and keep.lower() != "flip":
+                print("Invalid input")
+                keep = input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ")
+            if keep.lower() == "keep":
+                col = int(input("Enter col of where to put your card ")) - 1
+                while col < 0 or col > 3:
+                    print("Must be between 1 and 4")
+                    col = int(input("Enter col of card to flip ")) - 1
+
+                row = int(input("Enter row of where to put your card ")) - 1
+                while row < 0 or row > 1:
+                    print("Must be between 1 and 2")
+                    row = int(input("Enter row of card to flip ")) - 1
+
+                self.card_discarded = self.board.cards[col][row]
+                self.card_discarded.flip()
+                self.board.cards[col][row] = drawn
+            elif keep.lower() == "flip":
+                col = int(input("Enter col of card to flip ")) - 1
+                while col < 0 or col > 3:
+                    print("Must be between 1 and 4")
+                    col = int(input("Enter col of card to flip ")) - 1
+
+                row = int(input("Enter row of card to flip ")) - 1
+                while row < 0 or row > 1:
+                    print("Must be between 1 and 2")
+                    row = int(input("Enter row of card to flip ")) - 1
+
+                self.board.cards[col][row].flip()
+                self.card_discarded = drawn
+        elif draw_card.lower() == "discard":
+            col = int(input("Enter col of where to put your card ")) - 1
+            while col < 0 or col > 3:
+                print("Must be between 1 and 4")
+                col = int(input("Enter col of card to flip ")) - 1
+
+            row = int(input("Enter row of where to put your card ")) - 1
+            while row < 0 or row > 1:
+                print("Must be between 1 and 2")
+                row = int(input("Enter row of card to flip ")) - 1
+
+            self.card_discarded = self.board.cards[col][row]
+            self.card_discarded.flip()
+            self.board.cards[col][row] = discarded
+        return self.board.all_flipped()
+
 
 
 
 
 class Game():
     #basic game, only with 2 players for now
-    def __init__(self, player1, player2):
+    def __init__(self, playable, player1 = None, player2 = None):
         self.players = []
-        self.players.append(player1)
-        self.players.append(player2)
+        if playable:
+            self.players.append(Player())
+            self.players.append(User())
+        else:
+            self.players.append(player1)
+            self.players.append(player2)
         self.discard_pile_card = None
 
     def print_discarded(self):
@@ -235,6 +337,7 @@ class Game():
                 else:
                     round_over = True
                     break
+        print("")
         print("The round is over")
         #print the scores
         print("The scores for this round are: ")
@@ -248,5 +351,5 @@ class Game():
         #probably just gonna be used to calculate the player's fitness
 
 
-game = Game(Player(), Player())
+game = Game(True)
 game.play_round()
