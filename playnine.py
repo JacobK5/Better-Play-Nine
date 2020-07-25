@@ -1,4 +1,4 @@
-from random import shuffle, choice
+from random import shuffle, choice, random, uniform #uniform is used as uniform(5,10) 5 can be chosen, 10 cant but 9.9999 can
 
 """
 general plan:
@@ -94,13 +94,46 @@ class Board():
                     return False
         return True
 
-    def unflipped_locations(self):
+    def get_unflipped_locations(self):
         unflipped = []
         for col in range(4):
             for row in range(2):
                 if self.cards[col][row].visible_value == "F":
                     unflipped.append((col, row))
         return unflipped
+
+    def get_unmatched(self):
+        unmatched = []
+        for col in range(4):
+            for row in range(2):
+                if self.cards[col][row].visible_value != "F":
+                    unmatched.append(self.cards[col][row].visible_value)
+        return unmatched
+
+    def get_highest_unmatched(self):
+        return max(self.unmatched())
+
+    def get_location(self, card_val):
+        for col in range(4):
+            for row in range(2):
+                if self.get_state(col) != Board.BOTH_MATCH and self.get_state(col) != Board.NEITHER_FLIPPED:
+                    if self.cards[col][row].visible_value == card_val
+                    return (col, row)
+
+    def get_unflipped(self, col):
+        if self.get_state(col) != Board.ONE_FLIPPED:
+            return -1
+        if self.cards[col][0].visible_value == "F":
+            return 0
+        else:
+            return 1
+
+    def get_matches(self):
+        matches = []
+        for col in range(4):
+            if self.get_state(col) == Board.BOTH_MATCH:
+                matches.append(self.cards[col][0])
+        return matches
 
     def get_state(self, col):
         if self.cards[col][0].visible_value == "F" and self.cards[col][1].visible_value == "F":
@@ -114,7 +147,7 @@ class Board():
 
     def get_score(self):
         score = 0
-        matches = []
+        matches = [] #could probably use new matches function here
         for i in range(4):
             if self.get_state(i) == Board.BOTH_FLIPPED:
                 score += self.cards[i][0].value + self.cards[i][1].value
@@ -129,6 +162,24 @@ class Board():
                     score -= 5
         return score
 
+
+class DNA():
+    def __init__(self):
+        """
+        the traits, (not) in order, are:
+        horizontal or vertical: if it prefers flipping with a flipped card or a new col
+        lowest to take (from discard): lowest number it will take from the discard pile (maybe only if there is an unflipped col)
+        draw bias: how often it'll take the card if its low enough vs draw a new one (maybe these should be combined in a formula)
+        lowest to keep: from drawing
+        when to start mitigating (based on opponents number of unflipped cards)
+        lowest to mitigate: lowest amount you need to save for it to mitigate
+        joker placement: if joker goes in new spot or replaces a flipped card
+        higest card to go for -10 with
+        when to stop going for -10 (maybe could be linked with above, make one formula that determines if -10 is worth it later on)
+        draw card that doesnt match and is low, replace flipped card or put it with a flipped card or discard
+        
+        """
+        genes = []
 
 
 class Player():
@@ -151,7 +202,7 @@ class Player():
         print("")
         print("Drew " + str(drawn.visible_value))
         print("")
-        col, row = choice(self.board.unflipped_locations())
+        col, row = choice(self.board.get_unflipped_locations())
         self.card_discarded = self.board.cards[col][row]
         self.card_discarded.flip()
         self.board.cards[col][row] = drawn
@@ -163,6 +214,11 @@ class Player():
     def check_card(self, card):
         #will need later
         pass
+
+    """
+    NOTE: I think it might be best to have all DNA logic be held in one array from DNA class, but as soon as the player is created,
+          set the values in the array to their own descriptive variables in the player
+    """
         
 
 
@@ -353,3 +409,96 @@ class Game():
 
 game = Game(True)
 game.play_round()
+
+
+"""
+NOTES:
+Should (probably) be 3 stages to the game:
+1. Getting one card flipped in each col
+2. Filling in board till one card left
+3. Finishing the round
+Alternatively, if vertical is preferred (would rather place cards in same col as already flipped cards):
+Same but without step 1
+
+Logic for each stage:
+1. 
+a. Check if discard matches a card you're trying to match, if it is match it (obviously) (unless the other card is going for -10 already)
+b. If drawing bias is low enough and it is low enough and early enough in the game, or if it is low enough and is same as a match you already 
+   have take the discarded card and put it in a new unflipped col
+c. Otherwise, draw a card
+d. If card drawn matches, put it with the match (unless the other card is going for -10 already)
+e. If it is low enough, or if it is low enough and is same as a match you already have, put it in a new unflipped col
+f. Otherwise, flip a card in a new unflipped col
+Note: Steps are essentially the same for checking the card, which should be in its own function
+
+2.
+a. Check if discard matches a card you're trying to match, if it is match it (obviously) (unless the other card is going for -10 already)
+b. If the discard card is same as a match you've already made and it is early enough and it is low enough, take it and replace your highest
+   unmatched card if you save enough otherwise put it across from your highest card (tough choice here, plus it makes a tough choice later on
+   if you can match the highest card)
+c. If discard is low enough and it is late enough and the drawing bias is low, replace highest card with discard (mitigate)
+d. If it is low enough and drawing bias is low, place the discarded card with the highest card
+e. Otherwise, draw a card
+f. Check if it matches a card you're trying to match, if it is match it (obviously) (unless the other card is going for -10 already)
+g. If the drawn card is same as a match you've already made and it is early enough and it is low enough, take it and replace your highest
+   unmatched card if you save enough otherwise put it across from your highest card (tough choice here, plus it makes a tough choice later on
+   if you can match the highest card)
+h. If drawn card is low enough and it is late enough, replace highest card with discard (mitigate)
+i. If it is low enough and flipping bias is low, place the drawn card with the highest card
+j. Otherwise, flip a card across from the highest card
+
+3. 
+a. If discard matches an unmatched card that doesn't end the game, match it (duh) (unless the other card is going for -10 already)
+b. If the discard matches the card that ends the game, and you'll end with a low enough amount of points, match it
+c. If discard is same as a match you have and isn't too much higher than your highest unmatched card and -10 bias is high, replace highest
+   unmatched card with discard
+d. If discard is lower than your highest unmatched card and it mitigates enough and your drawing bias is low, replace highest card with discard
+e. Otherwise, draw a card
+f. If drawn card matches an unmatched card that doesn't end the game, match it (duh) (unless the other card is going for -10 already)
+g. If the drawn card matches the card that ends the game, and you'll end with a low enough amount of points, match it
+h. If drawn card is same as a match you have and isn't too much higher than your highest unmatched card and -10 bias is high, replace highest
+   unmatched card with discard
+i. If drawn is lower than your highest unmatched card and your highest unmatched card isn't going for -10 if -10 bias is high, replace highest 
+   card with discard (need to figure out the math for this step with -10 bias), otherwise replace next highest unmatched card
+
+
+Variables that each step use (not final):
+1.
+a. -10 bias, latest you go for -10, lowest for -10 (possibly something else about how much you save, or just factor that into calculation with -10 bias)
+b. drawing bias, lowest for -10, lowest to keep
+c. None
+d. -10 bias, latest you go for -10, lowest for -10 (same as step a)
+e. lowest for -10, lowest to keep (same as b but without drawing bias)
+f. None
+
+2.
+a. -10 bias, latest you go for -10. lowest for -10
+b. -10 bias, latest you go for -10. lowest for -10, some kind of mitigation factor and time factor
+c. mitigation factor, time factor, drawing bias
+d. lowest to keep, drawing bias
+e. None
+f. -10 bias, latest you go for -10. lowest for -10
+g. -10 bias, latest you go for -10. lowest for -10, some kind of mitigation factor and time factor
+h. mitigation factor, time factor
+i. flipping bias, lowest to keep (maybe should be different from lowest to keep)
+j. None
+
+3.
+a. -10 bias, latest you go for -10. lowest for -10
+b. Lowest to go out with
+c. -10 bias, highest you'll gain for -10
+d. drawing bias, possibly a new mitigation factor (might just somehow multiply drawing bias by how much you'll save)
+e. None
+f. -10 bias, latest you go for -10. lowest for -10 (not sure these are exactly what I want here)
+g. Lowest to go out with
+h. -10 bias, highest you'll gain for -10
+i. -10 bias (maybe a different version of it though)
+
+
+NOTE: Flipping bias is only for flipping across from a flipped card, not flipping a card in a totally unflipped row, since there is definitive mathematical
+      logic for taking cards below 5 and not otherwise
+NOTE: There should probably be one time factor for anything related to time, and you multiply it by how many unflipped cards your opponent with the
+      lowest amount of unflipped cards has left, to determine how much you care about the time left
+NOTE: In general, the more variables the better, since some variable values may do well early game but may do not as well in very similar but slightly
+      different situations later in the game
+"""
