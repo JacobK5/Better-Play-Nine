@@ -166,6 +166,7 @@ class Board():
         return score
 
 
+
 class DNA():
     def __init__(self):
         """
@@ -183,15 +184,47 @@ class DNA():
         
         """
         genes = []
+        #horizontal_preference (true or false)
+        if(random() < 0.5):
+            genes.push(True)
+        else:
+            genes.push(False)
+        #drawing_bias (btwn 0 and 1)
+        #flipping_bias (btwn 0 and 1)
+        #minus10_bias (btwn 0 and 1)
+        for i in range(3):
+            genes.push(random())
+
+        #time_multiplier (btwn 1 and 10) - might need to be slightly different
+        genes.push(floor(uniform(1, 10)))
+        #lowst_to_keep (btwn 0 and 12)
+        #lowest_for_minus10 (btwn 0 and 12)
+        for i in range(2):
+            genes.push(floor(uniform(1, 12)))
+        #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
+        genes.push(floor(uniform(1, 10)))
+
 
 
 class Player():
     #Layout for a player, by default is a computer player
-    def __init__(self):
+    def __init__(self dna = None):
         self.board = Board()
         self.card_discarded = None
         #something to hold the brains/logic
         #logic will be randomized by default and can be set after
+        if(dna = None):
+            self.dna = DNA()
+        else:
+            gene_iterator = iter(dna.genes)
+            self.horizontal_preference = next(gene_iterator)
+            self.drawing_bias = next(gene_iterator)
+            self.flipping_bias = next(gene_iterator)
+            self.minus10_bias = next(gene_iterator)
+            self.time_multiplier = next(gene_iterator)
+            self.lowest_to_keep = next(gene_iterator)
+            self.lowest_for_minus10 = next(gene_iterator)
+            self.lowest_to_go_out_with = next(gene_iterator)
 
     def flip_two(self):
         #will always flip this one
