@@ -105,9 +105,10 @@ class Board():
     def get_unmatched(self):
         unmatched = []
         for col in range(4):
-            for row in range(2):
-                if self.cards[col][row].visible_value != "F":
-                    unmatched.append(self.cards[col][row].visible_value)
+            if self.get_state[col] == Board.ONE_FLIPPED or self.get_state[col] == Board.BOTH_FLIPPED:
+                for row in range(2):
+                    if self.cards[col][row].visible_value != "F":
+                        unmatched.append(self.cards[col][row].visible_value)
         return unmatched
 
     def get_highest_unmatched(self):
@@ -142,6 +143,8 @@ class Board():
             return Board.ONE_FLIPPED
         elif self.cards[col][0].value == self.cards[col][1].value:
             return Board.BOTH_MATCH
+        elif (self.cards[col][0].value == 0 or self.cards[col][0] == -5) and (self.cards[col][1].value == 0 or self.cards[col][1] == -5)
+            return Board.BOTH_MATCH #makes joker and 0 count as a match
         else:
             return Board.BOTH_FLIPPED
 
@@ -217,7 +220,8 @@ class Player():
 
     """
     NOTE: I think it might be best to have all DNA logic be held in one array from DNA class, but as soon as the player is created,
-          set the values in the array to their own descriptive variables in the player
+          set the values in the array to their own descriptive variables in the player.
+          I can make an iterator from the DNA list using iter(list) then assign each value to next(iterator) and it'll work perfectly
     """
         
 
@@ -422,11 +426,11 @@ Same but without step 1
 
 Logic for each stage:
 1. 
-a. Check if discard matches a card you're trying to match, if it is match it (obviously) (unless the other card is going for -10 already)
-b. If drawing bias is low enough and it is low enough and early enough in the game, or if it is low enough and is same as a match you already 
+a. Check if discard matches a card you're trying to match, if it is match it (obviously)
+b. If drawing bias is low enough and it is low enough, or if it is low enough and is same as a match you already 
    have take the discarded card and put it in a new unflipped col
 c. Otherwise, draw a card
-d. If card drawn matches, put it with the match (unless the other card is going for -10 already)
+d. If card drawn matches, put it with the match
 e. If it is low enough, or if it is low enough and is same as a match you already have, put it in a new unflipped col
 f. Otherwise, flip a card in a new unflipped col
 Note: Steps are essentially the same for checking the card, which should be in its own function
@@ -501,4 +505,42 @@ NOTE: There should probably be one time factor for anything related to time, and
       lowest amount of unflipped cards has left, to determine how much you care about the time left
 NOTE: In general, the more variables the better, since some variable values may do well early game but may do not as well in very similar but slightly
       different situations later in the game
+NOTE: At all points, if a 0 is drawn and there is an unmatched joker the 0 should be put with the joker
+
+Trying to figure out conditions for each step:
+1.
+a. Does it match? If yes, match it (in theory this is always replacing a face down card at this point) (including matching joker with 0)
+b. If discard is a joker, keep it (in unmatched col). Is discard same as match you already have? If yes, is it low enough to go for -10 (is it lower than 
+   lowest for -10 times time multiplier over how many unflipped cards opponent has)? Then keep it, otherwise, if it is lower than lowest to keep and 
+   random number btwn 0 and 1 is higher than drawing bias (so that a high drawing bias means you draw more often), keep it
+c. Nothing
+d. Does it match? If yes, match it
+e. Is it same as match you already have? If yes, is it low enough to go for -10 (is it lower than lowest for -10 times time multiplier over how many 
+   unflipped cards opponent has), then keep it.
+
+
+List of all DNA variables:
+horizontal_preference (true or false)
+drawing_bias (btwn 0 and 1)
+flipping_bias (btwn 0 and 1)
+minus10_bias (btwn 0 and 1)
+time_multiplier (btwn 1 and 10) - might need to be slightly different
+lowest_to_keep (btwn 0 and 12)
+lowest_for_minus10 (btwn 0 and 12)
+lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
+
+
+
+
+
+Time multiplier:
+
+Opponent can have between 6 and 1 cards unflipped. 1 over these gives a range from 0.16 to 1. Maybe it can work like time multiplier over cards unflipped
+is how much you subtract from lowest to keep (normal and -10), and lowest youll mitigate to save
+
+
+
+Should put joker logic here seperately (since it can be handled seperately in an initial if statement when checking a card):
+
+
 """
