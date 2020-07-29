@@ -10,6 +10,7 @@ general plan:
 - maybe a population class, not sure though
 - training class
 """
+debugging = True
 
 class Card():
 	#A simple card, it just has a value
@@ -48,6 +49,7 @@ class Deck():
 
     def draw(self):
         self.cards[0].flip()
+        print("Drew " + str(self.cards[0].visible_value))
         return self.cards.pop(0)
 
     def draw_face_down(self):
@@ -105,7 +107,7 @@ class Board():
     def get_unmatched(self):
         unmatched = []
         for col in range(4):
-            if self.get_state[col] == Board.ONE_FLIPPED or self.get_state[col] == Board.BOTH_FLIPPED:
+            if self.get_state(col) == Board.ONE_FLIPPED or self.get_state(col) == Board.BOTH_FLIPPED:
                 for row in range(2):
                     if self.cards[col][row].visible_value != "F":
                         unmatched.append(self.cards[col][row].visible_value)
@@ -118,8 +120,8 @@ class Board():
         for col in range(4):
             for row in range(2):
                 if self.get_state(col) != Board.BOTH_MATCH and self.get_state(col) != Board.NEITHER_FLIPPED:
-                    if self.cards[col][row].visible_value == card_val
-                    return (col, row)
+                    if self.cards[col][row].visible_value == card_val:
+                        return (col, row)
 
     def get_unflipped(self, col):
         if self.get_state(col) != Board.ONE_FLIPPED:
@@ -143,7 +145,7 @@ class Board():
             return Board.ONE_FLIPPED
         elif self.cards[col][0].value == self.cards[col][1].value:
             return Board.BOTH_MATCH
-        elif (self.cards[col][0].value == 0 or self.cards[col][0] == -5) and (self.cards[col][1].value == 0 or self.cards[col][1] == -5)
+        elif (self.cards[col][0].value == 0 or self.cards[col][0] == -5) and (self.cards[col][1].value == 0 or self.cards[col][1] == -5):
             return Board.BOTH_MATCH #makes joker and 0 count as a match
         else:
             return Board.BOTH_FLIPPED
@@ -183,79 +185,192 @@ class DNA():
         draw card that doesnt match and is low, replace flipped card or put it with a flipped card or discard
         
         """
-        genes = []
+        self.genes = []
         #horizontal_preference (true or false)
-        if(random() < 0.5):
-            genes.push(True)
+        """if(random() < 0.5):
+            self.genes.append(True)
         else:
-            genes.push(False)
+            self.genes.append(False)"""
+        #for now, setting horizontal preference to true
+        self.genes.append(True)
         #drawing_bias (btwn 0 and 1)
         #flipping_bias (btwn 0 and 1)
         #minus10_bias (btwn 0 and 1)
         for i in range(3):
-            genes.push(random())
+            self.genes.append(random())
 
         #time_multiplier (btwn 1 and 10) - might need to be slightly different
-        genes.push(floor(uniform(1, 10)))
+        self.genes.append(int(uniform(1, 10)))
         #lowst_to_keep (btwn 0 and 12)
         #lowest_for_minus10 (btwn 0 and 12)
         for i in range(2):
-            genes.push(floor(uniform(1, 12)))
+            self.genes.append(int(uniform(1, 12)))
         #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
-        genes.push(floor(uniform(1, 10)))
+        self.genes.append(int(uniform(1, 10)))
+
+    def print(self):
+        print("horizontal_preference: " + str(self.genes[0]))
+        print("drawing_bias (btwn 0 and 1): " + str(self.genes[1]))
+        print("flipping_bias (btwn 0 and 1): " + str(self.genes[2]))
+        print("minus10_bias (btwn 0 and 1): " + str(self.genes[3]))
+        print("time_multiplier (btwn 1 and 10): " + str(self.genes[4]))
+        print("lowest_to_keep (btwn 0 and 12): " + str(self.genes[5]))
+        print("lowest_for_minus10 (btwn 0 and 12): " + str(self.genes[6]))
+        print("lowest_to_go_out_with (btwn 0 and 10)): " + str(self.genes[7]))
 
 
 
 class Player():
     #Layout for a player, by default is a computer player
-    def __init__(self dna = None):
+    def __init__(self, dna = None):
+        #make their board and a var for the card they last discarded
         self.board = Board()
         self.card_discarded = None
-        #something to hold the brains/logic
-        #logic will be randomized by default and can be set after
-        if(dna = None):
+        #set up their dna
+        if dna == None:
             self.dna = DNA()
         else:
-            gene_iterator = iter(dna.genes)
-            self.horizontal_preference = next(gene_iterator)
-            self.drawing_bias = next(gene_iterator)
-            self.flipping_bias = next(gene_iterator)
-            self.minus10_bias = next(gene_iterator)
-            self.time_multiplier = next(gene_iterator)
-            self.lowest_to_keep = next(gene_iterator)
-            self.lowest_for_minus10 = next(gene_iterator)
-            self.lowest_to_go_out_with = next(gene_iterator)
+            self.dna = dna
+        gene_iterator = iter(self.dna.genes)
+        self.horizontal_preference = next(gene_iterator)
+        self.drawing_bias = next(gene_iterator)
+        self.flipping_bias = next(gene_iterator)
+        self.minus10_bias = next(gene_iterator)
+        self.time_multiplier = next(gene_iterator)
+        self.lowest_to_keep = next(gene_iterator)
+        self.lowest_for_minus10 = next(gene_iterator)
+        self.lowest_to_go_out_with = next(gene_iterator)
+        #variable for whether or not to print out explanations of all the steps
+        
+        #variables for taking the turn
+        self.one_flipped_per_row = False
 
     def flip_two(self):
         #will always flip this one
         self.board.cards[0][0].flip()
-        #later this one will be determined by the logic
-        self.board.cards[0][1].flip()#otherwise is [1][0]
+        #other one determined by preference
+        if(self.horizontal_preference):
+            if debugging:
+                print("Flipping horizontal card")
+            self.board.cards[1][0].flip()
+        else:
+            if debugging:
+                print("Flipping vertical card")
+            self.board.cards[0][1].flip()
 
-    def take_turn(self, deck, discarded):
+    def take_turn(self, deck, discarded, opponents):
         #for now, for testing, will always draw and then put it in a random spot
-        drawn = deck.draw()
+        """drawn = deck.draw()
         print("")
         print("Drew " + str(drawn.visible_value))
         print("")
         col, row = choice(self.board.get_unflipped_locations())
         self.card_discarded = self.board.cards[col][row]
         self.card_discarded.flip()
-        self.board.cards[col][row] = drawn
+        self.board.cards[col][row] = drawn""" #What was here before putting in actual logic
+        if debugging:
+            print("Turn is being started")
+        #var to see if turn is done yet
+        turn_done = False
+        #figure out if you're in first or second stage:
+        if self.horizontal_preference and not self.one_flipped_per_row:
+            self.one_flipped_per_row = True
+            for col in range(4):
+                if(self.board.get_state(col) == Board.NEITHER_FLIPPED):
+                    self.one_flipped_per_row = False
+        #if you have horizontal preference and you're in the first stage, do this
+        if self.horizontal_preference and not self.one_flipped_per_row:
+            if debugging:
+                print("Horizontal preference and first stage, so checking discarded card")
+            turn_done = self.check_card(discarded, 1, "discard", opponents)
+            if not turn_done:
+                if debugging:
+                    print("Didn't take discarded card, so drawing a card")
+                card_drawn = deck.draw()
+                turn_done = self.check_card(card_drawn, 1, "deck", opponents)
+            if not turn_done:
+                if debugging:
+                    print("Didn't use drawn card so just flipping")
+                self.flip_card(1)
+
+
+        if debugging:
+            print("Turn is ending")
         return self.board.all_flipped()
 
     def take_last_turn(self, deck, discarded):
         self.take_turn(deck, discarded)
 
-    def check_card(self, card):
-        #will need later
-        pass
+    def check_card(self, card, stage, card_is_from, opponents):
+        #figure out time multiplier things
+        highest_unflipped_opponent = 6
+        for o in opponents:
+            if len(o.board.get_unflipped_locations()) > highest_unflipped_opponent:
+                highest_unflipped_opponent = o.board.get_unflipped_locations().count()
+        if debugging:
+            print("Highest amount of unflipped cards of opponents is: " + str(highest_unflipped_opponent))
+        #seperate logic just for jokers (-5s)
+        if card.value == -5:
+            if debugging:
+                print("Card is a joker")
+            #do special joker stuff
+        #if we are in the first stage
+        if stage == 1:
+            if card.visible_value in self.board.get_unmatched():
+                if debugging:
+                    print("The discarded card matches an unmatched card, so we're matching it")
+                col = self.board.get_location(card.visible_value)[0]
+                row = self.board.get_unflipped(col)
+                self.switch_cards(card, col, row)
+                return True
+            #if we get here, it doesn't match anything so we check if it is low or same as another match
+            #figuring out if we are going for -10
+            if card.value <= self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent:
+                if card.value in self.board.get_matches():
+                    col = None
+                    row = 0
+                    for column in range(4):
+                        if self.board.get_state(column) == Board.NEITHER_FLIPPED:
+                            col = column
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Card matches a match we already have and is low enough to go for -10, so we use it")
+                        print("Card value: " + str(card.value) + " is lower than lowest for minus 10: ")
+                        print(str(self.lowest_for_minus10) + " minus time multiplier: " + str(self.time_multiplier))
+                        print(" over lowest unflipped from opponents: " + str(highest_unflipped_opponent))
+                    return True
+            #if we get here, card isnt same as a match we already have, so we see if it's low enough to take
+            if card.value <= self.lowest_to_keep - self.time_multiplier / highest_unflipped_opponent:
+                #low enough to keep, just need to choose where to put it
+                for column in range(4):
+                        if self.board.get_state(column) == Board.NEITHER_FLIPPED:
+                            col = column
+                self.switch_cards(card, col, 0)
+                if debugging:
+                    print("Card is low enough to keep, so we use it")
+                    print("Card value: " + str(card.value) + " is lower than lowest to keep: ")
+                    print(str(self.lowest_to_keep) + " minus time multiplier: " + str(self.time_multiplier))
+                    print(" over lowest unflipped from opponents: " + str(highest_unflipped_opponent))
+                return True
 
-    """
-    NOTE: I think it might be best to have all DNA logic be held in one array from DNA class, but as soon as the player is created,
-          set the values in the array to their own descriptive variables in the player.
-          I can make an iterator from the DNA list using iter(list) then assign each value to next(iterator) and it'll work perfectly
-    """
+        #if the turn is never done (no switch is made) return false
+        return False
+
+    def flip_card(self, stage):
+        if stage == 1:
+            for col in range(4):
+                if self.board.get_state(col) == Board.NEITHER_FLIPPED:
+                    self.board.cards[col][0].flip()
+                    return 0
+        return -1
+
+
+    def switch_cards(self, card, col, row):
+        self.card_discarded = self.board.cards[col][row]
+        self.card_discarded.flip()
+        self.board.cards[col][row] = card
+
+
         
 
 
@@ -386,6 +501,8 @@ class Game():
         end_game()
 
     def play_round(self):
+        #for debugging
+        turns = 0
         #basic setup
         deck = Deck()
         self.deal(deck)
@@ -399,11 +516,14 @@ class Game():
         last_turn = False
         p_who_went_out = None
 
-
         #play each player's turn
-        while not round_over:
+        while not round_over and turns < 15:
+            turns += 1
             for i in range(len(self.players)):
                 p = self.players[i]
+                #make list of all opponents
+                opponents = self.players.copy()
+                opponents.remove(p)
 
                 if p != p_who_went_out:
                     print("")
@@ -414,7 +534,7 @@ class Game():
                     p.board.print()
 
                     if not last_turn:
-                        someone_went_out = p.take_turn(deck, self.discard_pile_card)
+                        someone_went_out = p.take_turn(deck, self.discard_pile_card, opponents)
                         self.discard_pile_card = p.card_discarded
                     else:
                         p.take_last_turn(deck, self.discard_pile_card)
@@ -444,8 +564,10 @@ class Game():
         #probably just gonna be used to calculate the player's fitness
 
 
-game = Game(True)
+game = Game(False, Player(), Player())
 game.play_round()
+# dna = DNA()
+# dna.print()
 
 
 """
