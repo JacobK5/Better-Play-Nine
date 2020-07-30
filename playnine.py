@@ -121,9 +121,9 @@ class Board():
                 for row in range(2):
                     if self.cards[col][row].visible_value != "F":
                         unmatched.append(self.cards[col][row].visible_value)
-        if debugging:
-            print("get unmatched called, it returned:")
-            print(unmatched)
+        # if debugging:
+        #     print("get unmatched called, it returned:")
+        #     print(unmatched)
         return unmatched
 
     def get_highest_unmatched(self):
@@ -379,9 +379,26 @@ class Player():
         return self.board.all_flipped()
 
     def take_last_turn(self, deck, discarded, opponents):
+        turn_done = False
         if debugging:
             print("On last turn")
-        self.take_turn(deck, discarded, opponents)
+            print("checking discarded card")
+        #really this should be a lot more complex than I'll make it initially
+        #it should change depending on if you still need to make matches
+        turn_done = self.check_card(discarded, 4, "discard", opponents)
+        if not turn_done:
+            if debugging:
+                print("Didn't take discarded card, so drawing a card")
+            card_drawn = deck.draw()
+            turn_done = self.check_card(card_drawn, 4, "deck", opponents)
+        if not turn_done:
+            if debugging:
+                print("Didn't use drawn card so just discarding")
+            self.card_discarded = card_drawn
+            turn_done = True
+
+
+        self.board.flip_all()
 
     def check_card(self, card, stage, card_is_from, opponents):
         #figure out which bias we need to use, drawing or flipping
@@ -653,6 +670,47 @@ class Player():
                     return True
                     #again, there's definetely a better way to do this 
             #if we are here, card doesn't match, go for -10, or mitigate, and we don't wanna go out, so we should return false and move on
+        elif stage == 4:
+            #we are on the last turn
+            #we check for a match
+            if card.value in self.board.get_unmatched():
+                if debugging:
+                    print("The discarded card matches an unmatched card")
+                col, row = self.board.get_location(card.value)
+                if (card.value + self.board.cards[col][row].value) > (self.board.get_highest_unmatched() - card.value):
+                    if debugging:
+                        print("Matching saves more than mitigating")
+                    row = self.board.get_unflipped(col)
+                    self.switch_cards(card, col, row)
+                    return True
+                else:
+                    if debugging:
+                        print("Matching saves less than mitigating")
+            #if no match or match saves less than mitigating, we either mitigate a flipped card (if it's above 5) or an unflipped card, or draw
+            if card_is_from == "deck" and (random() > drawing_bias or (self.board.get_highest_unmatched() - card.value < self.lowest_to_mitigate)):
+                #might wanna take drawing bias out of this
+                if debugging:
+                    print("Drawing bias is higher than random, or we don't mitigate enough, so we will draw a card and hope that's better")
+            else:
+                #we don't want to draw, we want to mitigate
+                if self.board.get_highest_unmatched() > 5:
+                    #we want to replace the highest unmatched card
+                    col, row = self.board.get_location(self.board.get_highest_unmatched())
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Replacing highest unmatched card")
+                    return True
+                else:
+                    #we want to replace a facedown card
+                    for col in range(4):
+                        if self.board.get_state(col) == Board.ONE_FLIPPED:
+                            row = self.board.get_unflipped(col)
+                            self.switch_cards(card, col, row)
+                            if debugging:
+                                print("Replacing an unflipped card")
+                            return True
+
+
         else:
             if debugging:
                 print("I shouldn't get here, stage should only be 1, 2, or 3")
