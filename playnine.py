@@ -510,7 +510,7 @@ class Player():
                         self.going_for_minus10.append(card.value)
                         return True
                 #if that doesn't happen, we can either replace a flipped card or an unflipped card
-                if random() > self.get_all_flipped_bias and (self.board.get_highest_unmatched() - card.value) >= (self.lowest_to_mitigate - self.time_multiplier / highest_unflipped_opponent):
+                if random() > self.get_all_flipped_bias and (self.board.get_highest_unmatched() - card.value) >= (self.lowest_to_mitigate - (self.time_multiplier / highest_unflipped_opponent)):
                     if debugging:
                         print("random was above get_all_flipped_bias, and we are mitigating more than lowest to mitigate minus time multiplier stuff, so replacing our highest card")
                     col, row = self.board.get_location(self.board.get_highest_unmatched())
@@ -540,7 +540,7 @@ class Player():
                         self.going_for_minus10.append(card.value)
                         return True
                 #if that doesn't happen, we can either replace a flipped card or an unflipped card
-                if random() > self.get_all_flipped_bias and (self.board.get_highest_unmatched() - card.value) >= (self.lowest_to_mitigate - self.time_multiplier / highest_unflipped_opponent):
+                if random() > self.get_all_flipped_bias and (self.board.get_highest_unmatched() - card.value) >= (self.lowest_to_mitigate - (self.time_multiplier / highest_unflipped_opponent)):
                     if debugging:
                         print("random was above get_all_flipped_bias, and we are mitigating more than lowest to mitigate minus, so replacing our highest card")
                     col, row = self.board.get_location(self.board.get_highest_unmatched())
@@ -645,7 +645,7 @@ class Player():
                             if val not in self.going_for_minus10 and val > highest:
                                 highest = val
                         #found next highest, see if it is higher than drawn
-                        if card.value < higest:
+                        if card.value < highest:
                             #switch these
                             col, row = self.board.get_location(highest)
                             self.switch_cards(card, col, row)
@@ -677,30 +677,41 @@ class Player():
                 if debugging:
                     print("The discarded card matches an unmatched card")
                 col, row = self.board.get_location(card.value)
+                if row == 0:
+                    row = 1
+                else:
+                    row = 0
                 if (card.value + self.board.cards[col][row].value) > (self.board.get_highest_unmatched() - card.value):
                     if debugging:
                         print("Matching saves more than mitigating")
-                    row = self.board.get_unflipped(col)
                     self.switch_cards(card, col, row)
                     return True
                 else:
                     if debugging:
                         print("Matching saves less than mitigating")
             #if no match or match saves less than mitigating, we either mitigate a flipped card (if it's above 5) or an unflipped card, or draw
-            if card_is_from == "deck" and (random() > drawing_bias or (self.board.get_highest_unmatched() - card.value < self.lowest_to_mitigate)):
+            if debugging:
+                print("Highest unmatched: " + str(self.board.get_highest_unmatched()) + " minus card value: " + str(card.value) + " is " + str(self.board.get_highest_unmatched() - card.value))
+                print("lowest to mitigate: " + str(self.lowest_to_mitigate) + " minus time multiplier: " + str(self.time_multiplier) + " is " + str(self.lowest_to_mitigate - self.time_multiplier))
+            real_lowest = self.lowest_to_mitigate - self.time_multiplier
+            if real_lowest < 1:
+                real_lowest = 1
+            if debugging:
+                print("Real lowest is: " + str(real_lowest))
+            if card_is_from == "discard" and (random() > self.drawing_bias or (self.board.get_highest_unmatched() - card.value) <= real_lowest):
                 #might wanna take drawing bias out of this
                 if debugging:
                     print("Drawing bias is higher than random, or we don't mitigate enough, so we will draw a card and hope that's better")
             else:
-                #we don't want to draw, we want to mitigate
-                if self.board.get_highest_unmatched() > 5:
+                #we don't want to draw, we want to mitigate (if we mitigate enough)
+                if self.board.get_highest_unmatched() > 5 and card.value < self.board.get_highest_unmatched():
                     #we want to replace the highest unmatched card
                     col, row = self.board.get_location(self.board.get_highest_unmatched())
                     self.switch_cards(card, col, row)
                     if debugging:
                         print("Replacing highest unmatched card")
                     return True
-                else:
+                elif card.value < 5:
                     #we want to replace a facedown card
                     for col in range(4):
                         if self.board.get_state(col) == Board.ONE_FLIPPED:
@@ -894,7 +905,7 @@ class Game():
 
     def play_round(self):
         #for debugging
-        turns = 0
+        # turns = 0
         #basic setup
         deck = Deck()
         self.deal(deck)
@@ -909,8 +920,8 @@ class Game():
         p_who_went_out = None
 
         #play each player's turn
-        while not round_over and turns < 15:
-            turns += 1
+        while not round_over:
+            # turns += 1
             for i in range(len(self.players)):
                 p = self.players[i]
                 #make list of all opponents
@@ -1105,7 +1116,6 @@ Card can be kept not because it goes for -10 but because it is low enough, even 
 and if that happens it isn't added to going for -10
 
 What I have left to do:
-Put in logic for very last turn
 Put in joker logic
 Then ML stuff!!!!!
 """
