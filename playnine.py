@@ -10,6 +10,9 @@ general plan:
 - maybe a population class, not sure though
 - training class
 """
+
+#TODO: fix logic at lines 449 and 480 (it's the same fix)
+
 debugging = True
 
 class Card():
@@ -207,6 +210,10 @@ class DNA():
             self.genes.append(int(uniform(1, 12)))
         #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
         self.genes.append(int(uniform(1, 10)))
+        #get_all_flipped_bias
+        self.genes.append(random())
+        #lowest_to_mitigate
+        self.genes.append(int(uniform(1, 12)))
 
     def print(self):
         print("horizontal_preference: " + str(self.genes[0]))
@@ -216,7 +223,9 @@ class DNA():
         print("time_multiplier (btwn 1 and 10): " + str(self.genes[4]))
         print("lowest_to_keep (btwn 0 and 12): " + str(self.genes[5]))
         print("lowest_for_minus10 (btwn 0 and 12): " + str(self.genes[6]))
-        print("lowest_to_go_out_with (btwn 0 and 10)): " + str(self.genes[7]))
+        print("lowest_to_go_out_with (btwn 0 and 10): " + str(self.genes[7]))
+        print("get_all_flipped_bias (btwn 0 and 1): " + str(self.genes[8]))
+        print("lowest_to_mitigate (btwn 1 and 12): " + str(self.genes[9]))
 
 
 
@@ -240,10 +249,13 @@ class Player():
         self.lowest_to_keep = next(gene_iterator)
         self.lowest_for_minus10 = next(gene_iterator)
         self.lowest_to_go_out_with = next(gene_iterator)
+        self.get_all_flipped_bias = next(gene_iterator)
+        self.lowest_to_mitigate = next(gene_iterator)
         #variable for whether or not to print out explanations of all the steps
         
         #variables for taking the turn
         self.one_flipped_per_row = False
+        self.going_for_minus10 = []
 
     def flip_two(self):
         #will always flip this one
@@ -292,6 +304,27 @@ class Player():
                 if debugging:
                     print("Didn't use drawn card so just flipping")
                 self.flip_card(1)
+                turn_done = True
+        #if none of this happens, we are on stage 2 or have vertical preference
+        if not turn_done:
+            #this is now what is used until there is only one card left
+            if debugging:
+                print("We are now in stage 2")
+                print("Checking discarded card")
+            turn_done = self.check_card(discarded, 2, "discard", opponents)
+            if not turn_done:
+                if debugging:
+                    print("Didn't take discarded card, so drawing a card")
+                card_drawn = deck.draw()
+                turn_done = self.check_card(card_drawn, 2, "deck", opponents)
+            if not turn_done:
+                if debugging:
+                    print("Didn't use drawn card so just flipping")
+                self.flip_card(2)
+                turn_done = True
+            #turn should now be done no matter what
+
+
 
 
         if debugging:
@@ -302,6 +335,12 @@ class Player():
         self.take_turn(deck, discarded)
 
     def check_card(self, card, stage, card_is_from, opponents):
+        #figure out which bias we need to use, drawing or flipping
+        bias = None
+        if card_is_from == "discard":
+            bias = self.drawing_bias
+        else:
+            bias = self.flipping_bias
         #figure out time multiplier things
         highest_unflipped_opponent = 6
         for o in opponents:
@@ -314,33 +353,35 @@ class Player():
             if debugging:
                 print("Card is a joker")
             #do special joker stuff
+
         #if we are in the first stage
         if stage == 1:
-            if card.visible_value in self.board.get_unmatched():
+            #check if card is a match
+            if card.value in self.board.get_unmatched():
                 if debugging:
                     print("The discarded card matches an unmatched card, so we're matching it")
-                col = self.board.get_location(card.visible_value)[0]
+                col = self.board.get_location(card.value)[0]
                 row = self.board.get_unflipped(col)
                 self.switch_cards(card, col, row)
                 return True
             #if we get here, it doesn't match anything so we check if it is low or same as another match
             #figuring out if we are going for -10
-            if card.value <= self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent:
-                if card.value in self.board.get_matches():
-                    col = None
-                    row = 0
-                    for column in range(4):
-                        if self.board.get_state(column) == Board.NEITHER_FLIPPED:
-                            col = column
-                    self.switch_cards(card, col, row)
-                    if debugging:
-                        print("Card matches a match we already have and is low enough to go for -10, so we use it")
-                        print("Card value: " + str(card.value) + " is lower than lowest for minus 10: ")
-                        print(str(self.lowest_for_minus10) + " minus time multiplier: " + str(self.time_multiplier))
-                        print(" over lowest unflipped from opponents: " + str(highest_unflipped_opponent))
-                    return True
+            if card.value in self.board.get_matches() and card.value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent):
+                col = None
+                row = 0
+                for column in range(4):
+                    if self.board.get_state(column) == Board.NEITHER_FLIPPED:
+                        col = column
+                self.switch_cards(card, col, row)
+                self.going_for_minus10.append(card.value)
+                if debugging:
+                    print("Card matches a match we already have and is low enough to go for -10, so we use it")
+                    print("Card value: " + str(card.value) + " is lower than lowest for minus 10: ")
+                    print(str(self.lowest_for_minus10) + " minus time multiplier: " + str(self.time_multiplier))
+                    print(" over lowest unflipped from opponents: " + str(highest_unflipped_opponent))
+                return True
             #if we get here, card isnt same as a match we already have, so we see if it's low enough to take
-            if card.value <= self.lowest_to_keep - self.time_multiplier / highest_unflipped_opponent:
+            if card.value <= (self.lowest_to_keep - self.time_multiplier / highest_unflipped_opponent):
                 #low enough to keep, just need to choose where to put it
                 for column in range(4):
                         if self.board.get_state(column) == Board.NEITHER_FLIPPED:
@@ -352,6 +393,97 @@ class Player():
                     print(str(self.lowest_to_keep) + " minus time multiplier: " + str(self.time_multiplier))
                     print(" over lowest unflipped from opponents: " + str(highest_unflipped_opponent))
                 return True
+            elif stage == 2:
+                #in here we are in stage 2, which we are in from the start if there is vertical preference
+                if card.value in self.board.get_unmatched():
+                    if debugging:
+                        print("Card matches an unmatched card")
+                    col, row = self.board.get_location(card.value)[0]
+                    if row == 0:
+                        row = 1
+                    else:
+                        row = 0
+                    #have location of where to switch, just need to check if the card there is going for -10
+                    if self.board.cards[col][row].value in self.going_for_minus10:
+                        #going to see if we should replace it or keep going for -10
+                        if self.board.cards[col][row].value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent) and random() < self.minus10_bias:
+                            #we don't switch it
+                            if debugging:
+                                print("Other card is going for -10 and is still low enough, and -10 bias is higher than random, so still going for -10")
+                        else:
+                            #we switch it and match the card
+                            if debugging:
+                                print("Switching the cards")
+                            self.switch_cards(card, col, row)
+                            self.going_for_minus10.remove(board.cards[col][row].value)
+                            return True
+                    else:
+                            #we switch it and match the card
+                            if debugging:
+                                print("Switching the cards")
+                            self.switch_cards(card, col, row)
+                            self.going_for_minus10.remove(board.cards[col][row].value)
+                            return True #guaranteed there's a better way to do this than having it twice in a row
+                #if we're here, discard doesn't match anything, so check if it's same as a match we already have
+                if card.value in self.board.get_matches() and card.value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent) and random() < self.minus10_bias:
+                    if debugging:
+                        print("Card is same as match we already have, low enough, and random was lower than -10 bias")
+                    #now figure out where to put it
+                    #first check if there is empty col
+                    for col in range(4):
+                        if self.board.get_state(col) == Board.NEITHER_FLIPPED:
+                            if debugging:
+                                print("There is an empty col, so putting it there")
+                            self.switch_cards(card, col, 0)
+                            self.going_for_minus10.append(card.value)
+                            return True
+                    #if that doesn't happen, we can either replace a flipped card or an unflipped card
+                    if random() > self.get_all_flipped_bias and (self.board.get_highest_unmatched() - card.value) >= (self.lowest_to_mitigate - self.time_multiplier / highest_unflipped_opponent):
+                        if debugging:
+                            print("random was above get_all_flipped_bias, and we are mitigating more than lowest to mitigate minus, so replacing our highest card")
+                        col, row = self.board.get_location(self.board.get_highest_unmatched())
+                        self.switch_cards(card, col, row)
+                        return True
+                    else:
+                        for col in range(4):
+                            if self.board.get_state(col) == Board.ONE_FLIPPED: #this should actually find the col with the highest value
+                                if debugging:
+                                    print("There is a col with one flipped, so putting it there")
+                                row = self.board.get_unflipped(col)
+                                self.switch_cards(card, col, row)
+                                return True
+                    #theoretically we should never get here
+                    if debugging:
+                        print("Something is wrong, we should never get here I think (line 448)")
+                #if we are still here, card doesn't match a match we already have, so if drawing or flipping bias is low and the card is low enough, we will take the discard
+                if random() > bias and card.value <= (self.lowest_to_keep - self.time_multiplier / highest_unflipped_opponent):
+                    if debugging:
+                        print("random is less than bias, and card is low enough to keep, so keeping it")
+                    #now just need to figure out where to put it
+                    #gonna try using same logic as for where to put -10 one
+                    for col in range(4):
+                        if self.board.get_state(col) == Board.NEITHER_FLIPPED:
+                            if debugging:
+                                print("There is an empty col, so putting it there")
+                            self.switch_cards(card, col, 0)
+                            self.going_for_minus10.append(card.value)
+                            return True
+                    #if that doesn't happen, we can either replace a flipped card or an unflipped card
+                    if random() > self.get_all_flipped_bias and (self.board.get_highest_unmatched() - card.value) >= (self.lowest_to_mitigate - self.time_multiplier / highest_unflipped_opponent):
+                        if debugging:
+                            print("random was above get_all_flipped_bias, and we are mitigating more than lowest to mitigate minus, so replacing our highest card")
+                        col, row = self.board.get_location(self.board.get_highest_unmatched())
+                        self.switch_cards(card, col, row)
+                        return True
+                    else:
+                        for col in range(4):
+                            if self.board.get_state(col) == Board.ONE_FLIPPED: #this should actually find the col with the highest value
+                                if debugging:
+                                    print("There is a col with one flipped, so putting it there")
+                                row = self.board.get_unflipped(col)
+                                self.switch_cards(card, col, row)
+                                return True
+                #that should be everything I think
 
         #if the turn is never done (no switch is made) return false
         return False
@@ -362,6 +494,15 @@ class Player():
                 if self.board.get_state(col) == Board.NEITHER_FLIPPED:
                     self.board.cards[col][0].flip()
                     return 0
+        elif stage == 2:
+            if self.horizontal_preference:
+                for col in range(4):
+                if self.board.get_state(col) == Board.NEITHER_FLIPPED:
+                    self.board.cards[col][0].flip()
+                    return 0
+            #otherwise flip opposite highest col
+            #TO DO AS SOON AS I GET BACK:
+            #make a function in board that returns col and row of location opposite highest unmatched card in col with only one flipped
         return -1
 
 
