@@ -266,6 +266,8 @@ class Player():
         #make their board and a var for the card they last discarded
         self.board = Board()
         self.card_discarded = None
+        #make their score variable
+        self.score = 0
         #set up their dna
         if dna == None:
             self.dna = DNA()
@@ -418,9 +420,67 @@ class Player():
         if card.value == -5:
             if debugging:
                 print("Card is a joker")
-            #do special joker stuff, possibly should be based on what stage it is, definetely should be different for last turn (stage 4)
+            if stage != 4:
+                #check if there is another joker
+                if card.value in self.board.get_unmatched():
+                    #match it, going for -10 doesn't matter here cuz you wouldn't discard a joker for -10 (technically sometimes you should tho)
+                    col, row = self.board.get_location(card.value)
+                    if row == 0:
+                        row = 1
+                    else:
+                        row = 0
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Matching the joker")
+                    return True
+                elif 0 in self.board.get_unmatched():
+                    col, row = self.board.get_location(0)
+                    if row == 0:
+                        row = 1
+                    else:
+                        row = 0
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Matching the joker with a 0")
+                    return True
+                else:
+                    #nothing to match it with, so either put it in new col or replace highest unflipped card
+                    for col in range(4):
+                        if self.board.get_state(col) == Board.NEITHER_FLIPPED:
+                            self.switch_cards(card, col, 0)
+                            if debugging:
+                                print("Putting joker in a new col")
+                                return True
+                    #if not done yet
+                    col, row = self.board.get_location(self.board.get_highest_unmatched())
+                    if row == 0:
+                        row = 1
+                    else:
+                        row = 0
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Replacing highest unmatched with a joker")
+                    return True
 
-
+            else:
+                #if we are on the last turn, replace highest card if it it above 5, otherwise replace facedown card
+                if self.board.get_highest_unmatched() > 5:
+                    col, row = self.board.get_location(self.board.get_highest_unmatched())
+                    if row == 0:
+                        row = 1
+                    else:
+                        row = 0
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Replacing highest unmatched with a joker")
+                    return True
+                else:
+                    col, row = self.board.get_unflipped_locations()[0]
+                    self.switch_cards(card, col, row)
+                    if debugging:
+                        print("Replacing unflipped card with a joker")
+                    return True
+            
         #if we are in the first stage
         if stage == 1:
             #check if card is a match
@@ -433,6 +493,18 @@ class Player():
                 return True
             #if we get here, it doesn't match anything so we check if it is low or same as another match
             #figuring out if we are going for -10
+            if card.value == 0 and -5 in self.board.get_unmatched():
+                #put it with a joker if there is one
+                col, row = self.board.get_location(-5)
+                if row == 0:
+                    row = 1
+                else:
+                    row = 0
+                self.switch_cards(card, col, row)
+                if debugging:
+                    print("Matching the zero with a joker")
+                return True
+                #gotta actually put this in, then paste it into other stages
             if card.value in self.board.get_matches() and card.value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent):
                 col = None
                 row = 0
@@ -497,6 +569,17 @@ class Player():
                         print("Switching the cards")
                     self.switch_cards(card, col, row)
                     return True #guaranteed there's a better way to do this than having it twice in a row
+            if card.value == 0 and -5 in self.board.get_unmatched():
+                #put it with a joker if there is one
+                col, row = self.board.get_location(-5)
+                if row == 0:
+                    row = 1
+                else:
+                    row = 0
+                self.switch_cards(card, col, row)
+                if debugging:
+                    print("Matching the zero with a joker")
+                return True
             #if we're here, discard doesn't match anything, so check if it's same as a match we already have
             if card.value in self.board.get_matches() and card.value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent) and random() < self.minus10_bias:
                 if debugging:
@@ -597,6 +680,17 @@ class Player():
                     self.switch_cards(card, col, row)
                     return True
             #if we're here, card doesn't match an unmatched card
+            if card.value == 0 and -5 in self.board.get_unmatched():
+                #put it with a joker if there is one
+                col, row = self.board.get_location(-5)
+                if row == 0:
+                    row = 1
+                else:
+                    row = 0
+                self.switch_cards(card, col, row)
+                if debugging:
+                    print("Matching the zero with a joker")
+                return True
             #check if card matches a match we already have
             if card.value in self.board.get_matches() and random() < self.minus10_bias:
                 #might go for -10, gonna see if its worth it
@@ -901,8 +995,8 @@ class Game():
     def play(self):
         game_done = False
         for i in range(9):
-            play_round()
-        end_game()
+            self.play_round()
+        self.end_game()
 
     def play_round(self):
         #for debugging
@@ -957,15 +1051,22 @@ class Game():
                     break
         print("")
         print("The round is over")
+        #add each player's score for the round to their total score
+        for p in self.players:
+            p.score += p.board.get_score()
         #print the scores
         print("The scores for this round are: ")
         for i in range(len(self.players)):
             print("Player " + str(i + 1) + ": " + str(self.players[i].board.get_score()))
+        print("The total scores are:")
+        for i in range(len(self.players)):
+            print("Player " + str(i + 1) + ": " + str(self.players[i].score))
 
 
 
     def end_game(self):
-        pass
+        if debugging:
+            print("The game is over")
         #probably just gonna be used to calculate the player's fitness
 
 
@@ -975,7 +1076,7 @@ for p in game.players:
     print("")
     p.dna.print()
     print("")
-game.play_round()
+game.play()
 # dna = DNA()
 # dna.print()
 
