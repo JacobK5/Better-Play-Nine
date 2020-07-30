@@ -418,7 +418,8 @@ class Player():
         if card.value == -5:
             if debugging:
                 print("Card is a joker")
-            #do special joker stuff
+            #do special joker stuff, possibly should be based on what stage it is, definetely should be different for last turn (stage 4)
+
 
         #if we are in the first stage
         if stage == 1:
@@ -571,7 +572,7 @@ class Player():
                 else:
                     row = 0
                 #see if card will make us go out
-                if self.board.cards[col][row].value == last_card:
+                if self.board.cards[col][row].value == last_card: #doesn't work well if there are multiples of the last card
                     if debugging:
                         print("Card matches with last card, seeing if we wanna go out")
                     #see if going out is worth it
@@ -585,7 +586,7 @@ class Player():
                             print("Will end with low enough score, so going out")
                         return True
                 #check if it replaces a card we're going for -10 with
-                elif card.value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent) and random() < self.minus10_bias:
+                elif card.value <= (self.lowest_for_minus10 - self.time_multiplier / highest_unflipped_opponent) and random() < self.minus10_bias and card.value in self.going_for_minus10:
                     #we don't switch it
                     if debugging:
                         print("Other card is going for -10 and is still low enough, and -10 bias is higher than random, so still going for -10")
