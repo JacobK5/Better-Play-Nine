@@ -1083,7 +1083,8 @@ class User(Player):
 
 class Game():
     #basic game, only with 2 players for now
-    def __init__(self, playable, show_text, player1 = None, player2 = None):
+    def __init__(self, playable, show_text, player1 = None, player2 = None, out_of = None):
+        self.out_of = out_of
         self.players = []
         self.show_text = show_text
         if playable:
@@ -1104,6 +1105,28 @@ class Game():
                     p.board.cards[col][row] = deck.draw_face_down()
 
     def play(self):
+        if self.out_of != None:
+            wins = [0, 0]
+            while wins[0] < self.out_of and wins[1] < self.out_of:
+                self.play_one_game()
+                if self.players[0].winner:
+                    wins[0] += 1
+                else:
+                    wins[1] += 1
+            if wins[0] < wins[1]:
+                self.players[0].winner = True
+                self.players[1].winner = False
+            else:
+                self.players[1].winner = True
+                self.players[0].winner = False
+        else:
+            self.play_one_game()
+
+
+
+
+
+    def play_one_game(self):
         game_done = False
         for i in range(9):
             self.play_round()
@@ -1347,6 +1370,7 @@ class Evolution():
         while not self.paused:
             #add one to generations
             self.generations += 1
+            print("Generation: " + str(self.generations))
             #see if we wanna stop
             if times_to_run != None:
                 if self.generations > times_to_run - 1:
@@ -1355,7 +1379,7 @@ class Evolution():
             self.games.clear()
             #fill up the games
             for i in range(0, self.population_size - 1, 2):
-                self.games.append(Game(False, False, self.population[i], self.population[i + 1]))
+                self.games.append(Game(False, False, self.population[i], self.population[i + 1], 5))
             #play the games
             if debugging:
                 print("Games size: " + str(len(self.games)))
@@ -1611,9 +1635,10 @@ class Evolving_Fights():
         #make a genetic algorithm run for 150 generations
         genetic = Evolution(False)
         print("Running Evolution")
-        genetic.run(150)
+        genetic.run(15)
         #pool = genetic.population #if its entire pool
         pool = Player(genetic.best_dna)#use best dna from evolution as a starting point
+        print("Best score is: " + str(genetic.best_score))
         fighting = Fights(pool)
 
 
@@ -1815,4 +1840,6 @@ Really need to fix bugs related tp -10, they'll likely have a big effect on what
 Other idea:
 Have player play random players till it loses, then have that player fight random players till it loses
 Now combine it with genetic algorithm somehow
+
+Should print out stats of fighter who won the most fights and how many they won
 """
