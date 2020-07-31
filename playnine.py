@@ -1184,19 +1184,31 @@ class Game():
         if debugging and self.show_text:
             print("The game is over")
         #probably just gonna be used to calculate the player's fitness
-        winning_score = 1000
+        scores = []
+        winner_indexes = []
+        #find all the scores
         for p in self.players:
-            if p.score < winning_score:
-                p.winner = True
+            scores.append(p.board.get_score())
+        #find the lowest score
+        winning_score = min(scores)
+        #see who had that score
+        for i in range(len(self.players)):
+            if self.players[i].board.get_score() == winning_score:
+                winner_indexes.append(i)
+        #if your score is a winning score, you're a winner, otherwise you're a loser
+        for i in range(len(self.players)):
+            if i in winner_indexes:
+                self.players[i].winner = True
             else:
+                self.players[i].winner = False
+        #this makes everyone lose if there's a tie (this can be commented out)
+        if len(winner_indexes) > 1:
+            for p in self.players:
                 p.winner = False
-        if self.players[1].score == self.players[0].score:
-            self.players[0].winner = False
-            self.players[1].winner = False
 
 
 class Evolution():
-    def __init__(self):
+    def __init__(self, display_window = True):
         #need to set up both actual evolution stuff and tkinter window stuff
         #evolution stuff
         self.population_size = 50 #must be even number
@@ -1216,106 +1228,84 @@ class Evolution():
         self.best_dna = None
 
 
+        self.display_window = display_window
+
+
         #make the window
         #set up window basics
-        self.window = tk.Tk()
-        self.stat_frm = tk.Frame(master = self.window, width=100, height=100)
-        self.btn_frm = tk.Frame(master = self.window, width=100, height=100)
-        self.title_lbl = tk.Label(text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
-        #self.window.configure(background="white")
-        # self.stat_frm.config(bg = "white")
-        # self.btn_frm.config(bg = "white")
-        # self.title_lbl.config(bg = "white")
-        self.title_lbl.pack()
-        #set up label frame
-        """
-        want it to have:
-        generations
-        best score
-        average score
-        Best genes:
-        11 labels, one for each var
-        """
-        self.lbl_frame_labels = []
-        #generations
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Generations: 0"))
-        #best score
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best score: Waiting for first run"))
-        #average score
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Average score: Waiting for first run"))
-        #best genes
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
-        #horizontal_preference (true or false)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal_preference: Waiting for first run"))
-        #drawing_bias (btwn 0 and 1)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "drawing_bias (btwn 0 and 1): Waiting for first run"))
-        #flipping_bias (btwn 0 and 1)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "flipping_bias (btwn 0 and 1): Waiting for first run"))
-        #minus10_bias (btwn 0 and 1)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "minus10_bias (btwn 0 and 1): Waiting for first run"))
-        #time_multiplier (btwn 1 and 10) - might need to be slightly different
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "time_multiplier (btwn 1 and 10): Waiting for first run"))
-        #lowst_to_keep (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_keep (btwn 0 and 12): Waiting for first run"))
-        #lowest_for_minus10 (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_for_minus10 (btwn 0 and 12): Waiting for first run"))
-        #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_go_out_with (btwn 0 and 10): Waiting for first run"))
-        #get_all_flipped_bias
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "get_all_flipped_bias (btwn 0 and 1): Waiting for first run"))
-        #lowest_to_mitigate
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_mitigate (btwn 1 and 12): Waiting for first run"))
-        #higest_to_add_for_minus10
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest_to_add_for_minus10 (btwn 1 and 10): Waiting for first run"))
+        if display_window:
+            self.window = tk.Tk()
+            self.stat_frm = tk.Frame(master = self.window, width=100, height=100)
+            self.btn_frm = tk.Frame(master = self.window, width=100, height=100)
+            self.title_lbl = tk.Label(text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
+            #self.window.configure(background="white")
+            # self.stat_frm.config(bg = "white")
+            # self.btn_frm.config(bg = "white")
+            # self.title_lbl.config(bg = "white")
+            self.title_lbl.pack()
 
-        #add all labels to the frame
-        for l in self.lbl_frame_labels:
-            l.pack(anchor = "w")
-            #l.config(bg = "white")
-            if debugging:
-                l.config(borderwidth=1, relief="solid")
+            #set up label frame
+            self.lbl_frame_labels = []
+            #generations
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Generations: 0"))
+            #best score
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best score: Waiting for first run"))
+            #average score
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Average score: Waiting for first run"))
+            #best genes
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
+            #horizontal_preference (true or false)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal_preference: Waiting for first run"))
+            #drawing_bias (btwn 0 and 1)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "drawing_bias (btwn 0 and 1): Waiting for first run"))
+            #flipping_bias (btwn 0 and 1)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "flipping_bias (btwn 0 and 1): Waiting for first run"))
+            #minus10_bias (btwn 0 and 1)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "minus10_bias (btwn 0 and 1): Waiting for first run"))
+            #time_multiplier (btwn 1 and 10) - might need to be slightly different
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "time_multiplier (btwn 1 and 10): Waiting for first run"))
+            #lowst_to_keep (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_keep (btwn 0 and 12): Waiting for first run"))
+            #lowest_for_minus10 (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_for_minus10 (btwn 0 and 12): Waiting for first run"))
+            #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_go_out_with (btwn 0 and 10): Waiting for first run"))
+            #get_all_flipped_bias
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "get_all_flipped_bias (btwn 0 and 1): Waiting for first run"))
+            #lowest_to_mitigate
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_mitigate (btwn 1 and 12): Waiting for first run"))
+            #higest_to_add_for_minus10
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest_to_add_for_minus10 (btwn 1 and 10): Waiting for first run"))
 
-        # print("horizontal_preference: " + str(self.genes[0]))
-        # print("drawing_bias (btwn 0 and 1): " + str(self.genes[1]))
-        # print("flipping_bias (btwn 0 and 1): " + str(self.genes[2]))
-        # print("minus10_bias (btwn 0 and 1): " + str(self.genes[3]))
-        # print("time_multiplier (btwn 1 and 10): " + str(self.genes[4]))
-        # print("lowest_to_keep (btwn 0 and 12): " + str(self.genes[5]))
-        # print("lowest_for_minus10 (btwn 0 and 12): " + str(self.genes[6]))
-        # print("lowest_to_go_out_with (btwn 0 and 10): " + str(self.genes[7]))
-        # print("get_all_flipped_bias (btwn 0 and 1): " + str(self.genes[8]))
-        # print("lowest_to_mitigate (btwn 1 and 12): " + str(self.genes[9]))
-        # print("highest_to_add_for_minus10 (btwn 1 and 10): " + str(self.genes[10]))
+            #add all labels to the frame
+            for l in self.lbl_frame_labels:
+                l.pack(anchor = "w")
+                #l.config(bg = "white")
+                if debugging:
+                    l.config(borderwidth=1, relief="solid")
 
-        #set up button frame
-        """
-        want it to have
-        start
-        pause
-        load
-        save
-        """
-        self.btn_frame_buttons = []
-        #start button
-        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Start", command = self.start))
-        #stop button
-        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Stop", command = self.stop))
-        #load button
-        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
-        #save button
-        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
+            #set up button frame
+            self.btn_frame_buttons = []
+            #start button
+            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Start", command = self.start))
+            #stop button
+            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Stop", command = self.stop))
+            #load button
+            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
+            #save button
+            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
 
-        #add all buttons to the frame
-        for b in self.btn_frame_buttons:
-            b.pack()
+            #add all buttons to the frame
+            for b in self.btn_frame_buttons:
+                b.pack()
 
-        #add the frames to the window
-        self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
-        self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+            #add the frames to the window
+            self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+            self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
 
 
-        #start up the window loop
-        self.window.mainloop()
+            #start up the window loop
+            self.window.mainloop()
 
 
     def start(self):
@@ -1346,15 +1336,21 @@ class Evolution():
             print("Save button pressed")
 
 
-    def run(self):
+    def run(self, times_to_run = None):
         #create the first random population
         if self.first_run:
             for i in range(self.population_size):
                 self.population.append(Player())
             self.first_run = False
+        if times_to_run != None:
+            self.paused = False
         while not self.paused:
             #add one to generations
             self.generations += 1
+            #see if we wanna stop
+            if times_to_run != None:
+                if self.generations > times_to_run - 1:
+                    self.paused = True #for this to really work I need this to not display the window while it goes I think, maybe not tho
             #clear the old games
             self.games.clear()
             #fill up the games
@@ -1399,9 +1395,10 @@ class Evolution():
                 print("Population size: " + str(len(self.population)))
                 print("")
 
-            #update the window
-            self.update_window()
-            self.window.update()
+            if self.display_window:
+                #update the window
+                self.update_window()
+                self.window.update()
 
         
 
@@ -1423,6 +1420,187 @@ class Evolution():
 
 
 
+class Fights():
+    def __init__(self, pool = None):
+        #need to set up both actual evolution stuff and tkinter window stuff
+        #fight stuff
+        self.fighter = None
+        self.total_fights = 0
+        self.current_players_fights = 0
+        #maybe add a setting for what it's the best out of
+
+        self.pool = pool
+
+        #stuff for running it
+        self.paused = True
+        self.first_run = True
+
+        #for stats
+        self.best_dna = DNA() #it's easier to just have it start as a random one
+
+
+        #make the window
+        #set up window basics
+        self.window = tk.Tk()
+        self.stat_frm = tk.Frame(master = self.window, width=100, height=100)
+        self.btn_frm = tk.Frame(master = self.window, width=100, height=100)
+        self.title_lbl = tk.Label(text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
+        #self.window.configure(background="white")
+        # self.stat_frm.config(bg = "white")
+        # self.btn_frm.config(bg = "white")
+        # self.title_lbl.config(bg = "white")
+        self.title_lbl.pack()
+        #set up label frame
+        self.lbl_frame_labels = []
+        #total fights
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Total Fights: 0"))
+        #total players fights
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Current player's fights: Waiting for first run"))
+        #best genes
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
+        #horizontal_preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal_preference: Waiting for first run"))
+        #drawing_bias (btwn 0 and 1)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "drawing_bias (btwn 0 and 1): Waiting for first run"))
+        #flipping_bias (btwn 0 and 1)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "flipping_bias (btwn 0 and 1): Waiting for first run"))
+        #minus10_bias (btwn 0 and 1)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "minus10_bias (btwn 0 and 1): Waiting for first run"))
+        #time_multiplier (btwn 1 and 10) - might need to be slightly different
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "time_multiplier (btwn 1 and 10): Waiting for first run"))
+        #lowst_to_keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_keep (btwn 0 and 12): Waiting for first run"))
+        #lowest_for_minus10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_for_minus10 (btwn 0 and 12): Waiting for first run"))
+        #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_go_out_with (btwn 0 and 10): Waiting for first run"))
+        #get_all_flipped_bias
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "get_all_flipped_bias (btwn 0 and 1): Waiting for first run"))
+        #lowest_to_mitigate
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_mitigate (btwn 1 and 12): Waiting for first run"))
+        #higest_to_add_for_minus10
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest_to_add_for_minus10 (btwn 1 and 10): Waiting for first run"))
+
+        #add all labels to the frame
+        for l in self.lbl_frame_labels:
+            l.pack(anchor = "w")
+            #l.config(bg = "white")
+            if debugging:
+                l.config(borderwidth=1, relief="solid")
+
+        #set up button frame
+        self.btn_frame_buttons = []
+        #start button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Start", command = self.start))
+        #stop button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Stop", command = self.stop))
+        #load button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
+        #save button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
+
+        #add all buttons to the frame
+        for b in self.btn_frame_buttons:
+            b.pack()
+
+        #add the frames to the window
+        self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+        self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+
+        #start up the window loop
+        self.window.mainloop()
+
+
+    def start(self):
+        #start button
+        if debugging:
+            print("Start button pressed")
+        #make paused false, call run
+        self.paused = False
+        self.run()
+
+    def stop(self):
+        #stop button
+        if debugging:
+            print("Stop button pressed")
+        #make paused true
+        self.paused = True
+
+
+    def load(self):
+        #load button
+        if debugging:
+            print("Load button pressed")
+
+
+    def save(self):
+        #save button
+        if debugging:
+            print("Save button pressed")
+
+
+    def run(self):
+        if self.first_run:
+            self.fighter = Player()
+            self.first_run = False
+        while not self.paused:
+            #add one to generations
+            self.total_fights += 1
+            self.current_players_fights += 1
+            #make the opponent
+            if self.pool == None or isinstance(self.pool, Player):
+                opponent = Player()
+            else:
+                opponent = choice(self.pool)
+                opponent.mutate(0.01)
+            #make the game and play it
+            game = Game(False, False, self.fighter, opponent)
+            game.play()
+            #check for winner
+            if opponent.winner:
+                self.fighter = opponent
+                self.best_dna = DNA(opponent.dna.genes)
+                self.current_players_fights = 0
+            # else:
+            #     print("Fighter won")
+            # if self.fighter.winner:
+            #     print("Fighter won, from other if")
+            #otherwise fighter stays
+            #update the window
+            self.update_window()
+            self.window.update()
+
+        
+
+    def update_window(self):
+        self.lbl_frame_labels[0]["text"] = "Total Fights: " + str(self.total_fights)
+        self.lbl_frame_labels[1]["text"] = "Current Player's Fights: " + str(self.current_players_fights)
+        self.lbl_frame_labels[3]["text"] = "horizontal_preference: " + str(self.best_dna.genes[0])
+        self.lbl_frame_labels[4]["text"] = "drawing_bias (btwn 0 and 1): " + str(self.best_dna.genes[1])
+        self.lbl_frame_labels[5]["text"] = "flipping_bias (btwn 0 and 1): " + str(self.best_dna.genes[2])
+        self.lbl_frame_labels[6]["text"] = "minus10_bias (btwn 0 and 1): " + str(self.best_dna.genes[3])
+        self.lbl_frame_labels[7]["text"] = "time_multiplier (btwn 1 and 10): " + str(self.best_dna.genes[4])
+        self.lbl_frame_labels[8]["text"] = "lowest_to_keep (btwn 0 and 12): " + str(self.best_dna.genes[5])
+        self.lbl_frame_labels[9]["text"] = "lowest_for_minus10 (btwn 0 and 12): " + str(self.best_dna.genes[6])
+        self.lbl_frame_labels[10]["text"] = "lowest_to_go_out_with (btwn 0 and 10): " + str(self.best_dna.genes[7])
+        self.lbl_frame_labels[11]["text"] = "get_all_flipped_bias (btwn 0 and 1): " + str(self.best_dna.genes[8])
+        self.lbl_frame_labels[12]["text"] = "lowest_to_mitigate (btwn 1 and 12): " + str(self.best_dna.genes[9])
+        self.lbl_frame_labels[13]["text"] = "highest_to_add_for_minus10 (btwn 1 and 10): " + str(self.best_dna.genes[10])
+
+class Evolving_Fights():
+    def __init__(self):
+        self.start()
+
+    def start(self):
+        #make a genetic algorithm run for 150 generations
+        genetic = Evolution(False)
+        print("Running Evolution")
+        genetic.run(150)
+        #pool = genetic.population #if its entire pool
+        pool = Player(genetic.best_dna)#use best dna from evolution as a starting point
+        fighting = Fights(pool)
+
+
 
 
 
@@ -1442,8 +1620,10 @@ class Evolution():
 #     print("")
 # game.play()
 
-Evolve = Evolution()
 
+#evolve = Evolution()
+#fight = Fights()
+ef = Evolving_Fights()
 
 """
 Testing stuff to learn tkinter
@@ -1614,5 +1794,9 @@ they'd have to replace a -10 to do it. This might never happen with how I wrote 
 
 
 What I have left to do:
-Then ML stuff!!!!!
+Really need to fix bugs related tp -10, they'll likely have a big effect on what strategy is best
+
+Other idea:
+Have player play random players till it loses, then have that player fight random players till it loses
+Now combine it with genetic algorithm somehow
 """
