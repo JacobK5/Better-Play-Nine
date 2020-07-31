@@ -932,8 +932,8 @@ class Player():
     #evolution functions
 
     def calc_fitness(self):
-        #map score from 150 to -150 to be between 0 and 100
-        fitness = ((self.score - 150) / (-150 - 150)) * 100
+        #map score from 150 to -150 to be between 0 and 50
+        fitness = ((self.score - 150) / (-150 - 150)) * 50
         #double score if winner
         if self.winner:
             fitness *= 2
@@ -1171,6 +1171,7 @@ class Evolution():
     def __init__(self):
         #need to set up both actual evolution stuff and tkinter window stuff
         #evolution stuff
+        self.population_size = 50 #must be even number
         self.population = []
         self.mating_pool = []
         self.games = []
@@ -1316,23 +1317,24 @@ class Evolution():
             print("Save button pressed")
 
 
-    
-
-
     def run(self):
         #create the first random population
         if self.first_run:
-            for i in range(100):
+            for i in range(self.population_size):
                 self.population.append(Player())
+            self.first_run = False
         while not self.paused:
             #add one to generations
             self.generations += 1
             #clear the old games
             self.games.clear()
             #fill up the games
-            for i in range(0, 99, 2):
+            for i in range(0, self.population_size - 1, 2):
                 self.games.append(Game(False, False, self.population[i], self.population[i + 1]))
             #play the games
+            if debugging:
+                print("Games size: " + str(len(self.games)))
+
             for g in self.games:
                 g.play()
             #calculate all the fitnesses, add to mating pool
@@ -1349,9 +1351,12 @@ class Evolution():
                 self.total_of_scores += p.board.get_score()
                 self.total_scores += 1
                 self.average_score = self.total_of_scores / self.total_scores
+            if debugging:
+                print("Mating pool size: " + str(len(self.mating_pool)))
+
             #now make new population
             self.population.clear()
-            for i in range(100):
+            for i in range(self.population_size):
                 #choose 2 random players that aren't the same
                 p1 = choice(self.mating_pool)
                 p2 = choice(self.mating_pool)
@@ -1359,6 +1364,11 @@ class Evolution():
                     p2 = choice(self.mating_pool)
                 child = p1.mate(p2)
                 self.population.append(child)
+
+            if debugging:
+                print("Population size: " + str(len(self.population)))
+                print("")
+
             #update the window
             self.update_window()
             self.window.update()
