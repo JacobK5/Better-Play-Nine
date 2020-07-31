@@ -1428,6 +1428,7 @@ class Fights():
         self.total_fights = 0
         self.current_players_fights = 0
         #maybe add a setting for what it's the best out of
+        self.out_of = 5
 
         self.pool = pool
 
@@ -1544,6 +1545,9 @@ class Fights():
             self.fighter = Player()
             self.first_run = False
         while not self.paused:
+            winner = None
+            opponent_score = 0
+            fighter_score = 0
             #add one to generations
             self.total_fights += 1
             self.current_players_fights += 1
@@ -1554,11 +1558,23 @@ class Fights():
                 opponent = choice(self.pool)
                 opponent.mutate(0.01)
             #make the game and play it
-            game = Game(False, False, self.fighter, opponent)
-            game.play()
-            #check for winner
-            if opponent.winner:
-                self.fighter = opponent
+            while winner == None:
+                game = Game(False, False, self.fighter, opponent)
+                game.play()
+                #check for winner
+                if opponent.winner:
+                    opponent_score += 1
+                    if opponent_score > self.out_of / 2:
+                        winner = opponent
+                else:
+                    fighter_score += 1
+                    if fighter_score > self.out_of / 2:
+                        winner = self.fighter
+
+                    
+            #once there's a winner, do this
+            self.fighter = winner
+            if winner == opponent:
                 self.best_dna = DNA(opponent.dna.genes)
                 self.current_players_fights = 0
             # else:
