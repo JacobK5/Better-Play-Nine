@@ -225,6 +225,7 @@ class DNA():
         """
         if genes == None:
             self.genes = []
+            """old way
             #horizontal_preference (true or false)
             if(random() < 0.5):
                 self.genes.append(True)
@@ -250,8 +251,34 @@ class DNA():
             self.genes.append(int(uniform(1, 12)))
             #higest_to_add_for_minus10
             self.genes.append(int(uniform(1, 10)))
+            """
+            for i in range(11):
+                self.genes.append(self.random(i))
         else:
             self.genes = genes
+
+    def random(self, gene):
+        between_0_and_1 = [1, 2, 3, 8]
+        between_1_and_10 = [4, 7]
+        between_0_and_12 = [5, 6]
+        if gene == 0:
+            if(random() < 0.5):
+                return True
+            else:
+                return False
+        elif gene in between_0_and_1:
+            return random()
+        elif gene in between_1_and_10:
+            return int(uniform(1, 10))
+        elif gene in between_0_and_12:
+            return int(uniform(0, 12))
+        elif gene == 9:
+            return int(uniform(1, 12))
+        elif gene == 10:
+            return int(uniform(1, 10))
+
+
+
 
     def print(self):
         print("horizontal_preference: " + str(self.genes[0]))
@@ -948,10 +975,11 @@ class Player():
                 new_dna.genes[i] = partner.dna.genes[i]
         return Player(new_dna)
 
+    def mutate(self, mutation_rate):
+        for i in range(len(self.dna.genes)):
+            if random() < mutation_rate:
+                self.dna.genes[i] = self.dna.random(i)
 
-
-
-        
 
 
 class User(Player):
@@ -1172,6 +1200,7 @@ class Evolution():
         #need to set up both actual evolution stuff and tkinter window stuff
         #evolution stuff
         self.population_size = 50 #must be even number
+        self.mutation_rate = 0.01
         self.population = []
         self.mating_pool = []
         self.games = []
@@ -1363,6 +1392,7 @@ class Evolution():
                 while p1 == p2:
                     p2 = choice(self.mating_pool)
                 child = p1.mate(p2)
+                child.mutate(self.mutation_rate)
                 self.population.append(child)
 
             if debugging:
