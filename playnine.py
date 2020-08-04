@@ -1,4 +1,4 @@
-from random import shuffle, choice, random, uniform #uniform is used as uniform(5,10) 5 can be chosen, 10 cant but 9.9999 can
+from random import shuffle, choice, random, randint #randint is used as randint(5,10) 5 and 10 can be chosen
 import tkinter as tk
 
 """
@@ -12,9 +12,7 @@ general plan:
 - training class
 """
 
-#TODO: fix logic at lines 449 and 480 (it's the same fix)
-
-debugging = True
+debugging = False
 print_drawn = False
 
 class Card():
@@ -60,6 +58,12 @@ class Deck():
 
     def draw_face_down(self):
         return self.cards.pop(0)
+
+    def remove_card(self, val):
+        for c in self.cards:
+            if c.value == val:
+                self.cards.remove(c)
+                break
 
 
 
@@ -184,7 +188,7 @@ class Board():
             return Board.ONE_FLIPPED
         elif self.cards[col][0].value == self.cards[col][1].value:
             return Board.BOTH_MATCH
-        elif (self.cards[col][0].value == 0 or self.cards[col][0] == -5) and (self.cards[col][1].value == 0 or self.cards[col][1] == -5):
+        elif (self.cards[col][0].value == 0 or self.cards[col][0].value == -5) and (self.cards[col][1].value == 0 or self.cards[col][1].value == -5):
             return Board.BOTH_MATCH #makes joker and 0 count as a match
         else:
             return Board.BOTH_FLIPPED
@@ -234,11 +238,11 @@ class DNA():
             else:
                 return False
         elif gene == 5:
-            return uniform(1, 6)
+            return randint(1, 6)
         elif gene == 6:
-            return uniform(-9, 20)
+            return randint(-9, 20)
         else:
-            return uniform(0, 12)
+            return randint(0, 12)
 
     def print(self):
         pass
@@ -825,12 +829,22 @@ class Player():
 
     #evolution functions
 
-    def calc_fitness(self): #might need to make this work for all rounds (multiply both sides by number of rounds)
+    def calc_fitness(self, opponents): #might need to make this work for all rounds (multiply both sides by number of rounds)
+        #fitness should really be based on how much you beat your opponent by, maybe we actually only breed winners
         #map score from 150 to -150 to be between 0 and 50
-        fitness = ((self.score - 150) / (-150 - 150)) * 50
-        #double score if winner
-        if self.winner:
-            fitness *= 2
+        if not self.winner:
+            if debugging:
+                print("Fitness is 0")
+            return 0
+        else:
+            #get best opponent's score
+            best_opponent = 150
+            for o in opponents:
+                if o.board.get_score() < best_opponent:
+                    best_opponent = o.board.get_score()
+            fitness =  best_opponent - self.board.get_score()
+        if debugging:
+            print("Fitness is " + str(fitness))
         return int(fitness)
 
     def mate(self, partner):
@@ -852,11 +866,11 @@ class Player():
     def mutate(self, mutation_rate):
         for i in range(len(self.earlyDNA.genes)):
             if random() < mutation_rate:
-                self.earlyDNA.genes[i] = self.earlyDNA.genes.random(i)
+                self.earlyDNA.genes[i] = self.earlyDNA.random(i)
 
         for i in range(len(self.lateDNA.genes)):
             if random() < mutation_rate:
-                self.lateDNA.genes[i] = self.lateDNA.genes.random(i)
+                self.lateDNA.genes[i] = self.lateDNA.random(i)
 
 
 
@@ -906,7 +920,7 @@ class User(Player):
             print("Invalid input")
             draw_card = input("Enter draw to draw a card, or discard to use the discarded card ")
         if draw_card.lower() == "draw":
-            drawn = deck.draw()
+            card_drawn = deck.draw()
             print("You drew " + str(drawn.visible_value))
             keep = input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ")
             while keep.lower() != "keep" and keep.lower() != "flip":
@@ -985,6 +999,16 @@ class Game():
                 for row in range(2):
                     p.board.cards[col][row] = deck.draw_face_down()
 
+    def reshuffle(self, deck):
+        temp = Deck()
+        for p in self.players:
+            for col in range(4):
+                for row in range(2):
+                    if debugging:
+                        print("removing " + str(p.board.cards[col][row].value))
+                    temp.remove_card(p.board.cards[col][row].value)
+        return temp
+
     def play(self):
         if self.out_of != None:
             wins = [0, 0]
@@ -1002,10 +1026,6 @@ class Game():
                 self.players[0].winner = False
         else:
             self.play_one_game()
-
-
-
-
 
     def play_one_game(self):
         game_done = False
@@ -1033,6 +1053,11 @@ class Game():
         while not round_over:
             # turns += 1
             for i in range(len(self.players)):
+                #check if deck is empty
+                if len(deck.cards) == 0:
+                    deck = self.reshuffle(deck)
+                    if debugging:
+                        print("Deck shuffled")
                 p = self.players[i]
                 #make list of all opponents
                 opponents = self.players.copy()
@@ -1115,7 +1140,7 @@ class Evolution():
     def __init__(self, display_window = True):
         #need to set up both actual evolution stuff and tkinter window stuff
         #evolution stuff
-        self.population_size = 50 #must be even number
+        self.population_size = 10 #must be even number
         self.mutation_rate = 0.01
         self.population = []
         self.mating_pool = []
@@ -1129,7 +1154,8 @@ class Evolution():
         self.average_score = None
         self.total_of_scores = 0
         self.total_scores = 0
-        self.best_dna = None
+        self.best_early = None
+        self.best_late = None
 
 
         self.display_window = display_window
@@ -1158,29 +1184,39 @@ class Evolution():
             self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Average score: Waiting for first run"))
             #best genes
             self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
-            #horizontal_preference (true or false)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal_preference: Waiting for first run"))
-            #drawing_bias (btwn 0 and 1)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "drawing_bias (btwn 0 and 1): Waiting for first run"))
-            #flipping_bias (btwn 0 and 1)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "flipping_bias (btwn 0 and 1): Waiting for first run"))
-            #minus10_bias (btwn 0 and 1)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "minus10_bias (btwn 0 and 1): Waiting for first run"))
-            #time_multiplier (btwn 1 and 10) - might need to be slightly different
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "time_multiplier (btwn 1 and 10): Waiting for first run"))
-            #lowst_to_keep (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_keep (btwn 0 and 12): Waiting for first run"))
-            #lowest_for_minus10 (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_for_minus10 (btwn 0 and 12): Waiting for first run"))
-            #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_go_out_with (btwn 0 and 10): Waiting for first run"))
-            #get_all_flipped_bias
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "get_all_flipped_bias (btwn 0 and 1): Waiting for first run"))
-            #lowest_to_mitigate
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_mitigate (btwn 1 and 12): Waiting for first run"))
-            #higest_to_add_for_minus10
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest_to_add_for_minus10 (btwn 1 and 10): Waiting for first run"))
-
+            #early genes
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Early:"))
+            #horizontal preference (true or false)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
+            #lowest to take (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
+            #lowest to keep (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+            #lowest to mitigate (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+            #highest for -10 (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+            #end (btwn 1 and 6)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end (btwn 1 and 6): Waiting for first run"))
+            #lowest to go out with (btwn -9 and 20)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
+            #late genes
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
+            #horizontal preference (true or false)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
+            #lowest to take (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
+            #lowest to keep (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+            #lowest to mitigate (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+            #highest for -10 (btwn 0 and 12)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+            #end for -10 (btwn 1 and 6)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
+            #lowest to go out with (btwn -9 and 20)
+            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
+            
             #add all labels to the frame
             for l in self.lbl_frame_labels:
                 l.pack(anchor = "w")
@@ -1251,7 +1287,8 @@ class Evolution():
         while not self.paused:
             #add one to generations
             self.generations += 1
-            print("Generation: " + str(self.generations))
+            if debugging:
+                print("Generation: " + str(self.generations))
             #see if we wanna stop
             if times_to_run != None:
                 if self.generations > times_to_run - 1:
@@ -1269,14 +1306,28 @@ class Evolution():
                 g.play()
             #calculate all the fitnesses, add to mating pool
             self.mating_pool.clear()
-            for p in self.population:
-                fitness = p.calc_fitness()
+            for i in range(len(self.population)):
+                p = self.population[i]
+                #make array of opponents
+                opponents = []
+                if debugging:
+                    print("Score is " + str(p.board.get_score()))
+                if i % 2 == 0:
+                    opponents.append(self.population[i + 1])
+                    if debugging:
+                        print("Opponents score is " + str(self.population[i + 1].board.get_score()))
+                else:
+                    opponents.append(self.population[i - 1])
+                    if debugging:
+                        print("Opponents score is " + str(self.population[i - 1].board.get_score()))
+                fitness = p.calc_fitness(opponents)
                 for i in range(fitness):
                     self.mating_pool.append(p)
                 #check if fitness is a new record
                 if p.board.get_score() < self.best_score:
                     self.best_score = p.board.get_score()
-                    self.best_dna = DNA(p.dna.genes)
+                    self.best_early = DNA(p.earlyDNA.genes)
+                    self.best_late = DNA(p.lateDNA.genes)
                 #adjust average score
                 self.total_of_scores += p.board.get_score()
                 self.total_scores += 1
@@ -1311,17 +1362,20 @@ class Evolution():
         self.lbl_frame_labels[0]["text"] = "Generations: " + str(self.generations)
         self.lbl_frame_labels[1]["text"] = "Best score: " + str(self.best_score)
         self.lbl_frame_labels[2]["text"] = "Average score: " + str(self.average_score)
-        self.lbl_frame_labels[4]["text"] = "horizontal_preference: " + str(self.best_dna.genes[0])
-        self.lbl_frame_labels[5]["text"] = "drawing_bias (btwn 0 and 1): " + str(self.best_dna.genes[1])
-        self.lbl_frame_labels[6]["text"] = "flipping_bias (btwn 0 and 1): " + str(self.best_dna.genes[2])
-        self.lbl_frame_labels[7]["text"] = "minus10_bias (btwn 0 and 1): " + str(self.best_dna.genes[3])
-        self.lbl_frame_labels[8]["text"] = "time_multiplier (btwn 1 and 10): " + str(self.best_dna.genes[4])
-        self.lbl_frame_labels[9]["text"] = "lowest_to_keep (btwn 0 and 12): " + str(self.best_dna.genes[5])
-        self.lbl_frame_labels[10]["text"] = "lowest_for_minus10 (btwn 0 and 12): " + str(self.best_dna.genes[6])
-        self.lbl_frame_labels[11]["text"] = "lowest_to_go_out_with (btwn 0 and 10): " + str(self.best_dna.genes[7])
-        self.lbl_frame_labels[12]["text"] = "get_all_flipped_bias (btwn 0 and 1): " + str(self.best_dna.genes[8])
-        self.lbl_frame_labels[13]["text"] = "lowest_to_mitigate (btwn 1 and 12): " + str(self.best_dna.genes[9])
-        self.lbl_frame_labels[14]["text"] = "highest_to_add_for_minus10 (btwn 1 and 10): " + str(self.best_dna.genes[10])
+        self.lbl_frame_labels[5]["text"] = "horizontal preference: " + str(self.best_early.genes[0])
+        self.lbl_frame_labels[6]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
+        self.lbl_frame_labels[7]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
+        self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
+        self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
+        self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
+        self.lbl_frame_labels[11]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
+        self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
+        self.lbl_frame_labels[14]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
+        self.lbl_frame_labels[15]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
+        self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
+        self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
+        self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
+        self.lbl_frame_labels[19]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
 
 
 
@@ -1343,7 +1397,8 @@ class Fights():
         self.first_run = True
 
         #for stats
-        self.best_dna = DNA() #it's easier to just have it start as a random one
+        self.best_early = DNA() #it's easier to just have it start as a random one
+        self.best_late = DNA()
 
 
         #make the window
@@ -1365,28 +1420,38 @@ class Fights():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Current player's fights: Waiting for first run"))
         #best genes
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
-        #horizontal_preference (true or false)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal_preference: Waiting for first run"))
-        #drawing_bias (btwn 0 and 1)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "drawing_bias (btwn 0 and 1): Waiting for first run"))
-        #flipping_bias (btwn 0 and 1)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "flipping_bias (btwn 0 and 1): Waiting for first run"))
-        #minus10_bias (btwn 0 and 1)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "minus10_bias (btwn 0 and 1): Waiting for first run"))
-        #time_multiplier (btwn 1 and 10) - might need to be slightly different
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "time_multiplier (btwn 1 and 10): Waiting for first run"))
-        #lowst_to_keep (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_keep (btwn 0 and 12): Waiting for first run"))
-        #lowest_for_minus10 (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_for_minus10 (btwn 0 and 12): Waiting for first run"))
-        #lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_go_out_with (btwn 0 and 10): Waiting for first run"))
-        #get_all_flipped_bias
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "get_all_flipped_bias (btwn 0 and 1): Waiting for first run"))
-        #lowest_to_mitigate
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest_to_mitigate (btwn 1 and 12): Waiting for first run"))
-        #higest_to_add_for_minus10
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest_to_add_for_minus10 (btwn 1 and 10): Waiting for first run"))
+        #early genes
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Early:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
+        #lowest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
+        #lowest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end (btwn 1 and 6): Waiting for first run"))
+        #lowest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
+        #late genes
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
+        #lowest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
+        #lowest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end for -10 (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
+        #lowest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
 
         #add all labels to the frame
         for l in self.lbl_frame_labels:
@@ -1507,17 +1572,20 @@ class Fights():
     def update_window(self):
         self.lbl_frame_labels[0]["text"] = "Total Fights: " + str(self.total_fights)
         self.lbl_frame_labels[1]["text"] = "Current Player's Fights: " + str(self.current_players_fights)
-        self.lbl_frame_labels[3]["text"] = "horizontal_preference: " + str(self.best_dna.genes[0])
-        self.lbl_frame_labels[4]["text"] = "drawing_bias (btwn 0 and 1): " + str(self.best_dna.genes[1])
-        self.lbl_frame_labels[5]["text"] = "flipping_bias (btwn 0 and 1): " + str(self.best_dna.genes[2])
-        self.lbl_frame_labels[6]["text"] = "minus10_bias (btwn 0 and 1): " + str(self.best_dna.genes[3])
-        self.lbl_frame_labels[7]["text"] = "time_multiplier (btwn 1 and 10): " + str(self.best_dna.genes[4])
-        self.lbl_frame_labels[8]["text"] = "lowest_to_keep (btwn 0 and 12): " + str(self.best_dna.genes[5])
-        self.lbl_frame_labels[9]["text"] = "lowest_for_minus10 (btwn 0 and 12): " + str(self.best_dna.genes[6])
-        self.lbl_frame_labels[10]["text"] = "lowest_to_go_out_with (btwn 0 and 10): " + str(self.best_dna.genes[7])
-        self.lbl_frame_labels[11]["text"] = "get_all_flipped_bias (btwn 0 and 1): " + str(self.best_dna.genes[8])
-        self.lbl_frame_labels[12]["text"] = "lowest_to_mitigate (btwn 1 and 12): " + str(self.best_dna.genes[9])
-        self.lbl_frame_labels[13]["text"] = "highest_to_add_for_minus10 (btwn 1 and 10): " + str(self.best_dna.genes[10])
+        self.lbl_frame_labels[4]["text"] = "horizontal preference: " + str(self.best_early.genes[0])
+        self.lbl_frame_labels[5]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
+        self.lbl_frame_labels[6]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
+        self.lbl_frame_labels[7]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
+        self.lbl_frame_labels[8]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
+        self.lbl_frame_labels[9]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
+        self.lbl_frame_labels[10]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
+        self.lbl_frame_labels[12]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
+        self.lbl_frame_labels[13]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
+        self.lbl_frame_labels[14]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
+        self.lbl_frame_labels[15]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
+        self.lbl_frame_labels[16]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
+        self.lbl_frame_labels[17]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
+        self.lbl_frame_labels[18]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
 
 class Evolving_Fights():
     def __init__(self):
