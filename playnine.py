@@ -1,5 +1,6 @@
 from random import shuffle, choice, random, randint #randint is used as randint(5,10) 5 and 10 can be chosen
 import tkinter as tk
+from tkinter import filedialog
 
 """
 general plan:
@@ -265,7 +266,8 @@ class Player():
         self.board = Board()
         self.card_discarded = None
         #for debugging
-        self.code = randint(0, 100000)
+        if debugging:
+            self.code = randint(0, 100000)
         #make their score variable
         self.score = 0
         #make a variable for if they won
@@ -1157,7 +1159,7 @@ class Evolution():
     def __init__(self, display_window = True):
         #need to set up both actual evolution stuff and tkinter window stuff
         #evolution stuff
-        self.population_size = 10 #must be even number
+        self.population_size = 50 #must be even number
         self.mutation_rate = 0.01
         self.population = []
         self.mating_pool = []
@@ -1171,8 +1173,8 @@ class Evolution():
         self.average_score = None
         self.total_of_scores = 0
         self.total_scores = 0
-        self.best_early = None
-        self.best_late = None
+        self.best_early = DNA()
+        self.best_late = DNA()
 
 
         self.display_window = display_window
@@ -1285,12 +1287,79 @@ class Evolution():
         #load button
         if debugging:
             print("Load button pressed")
+        new_pop = []
+        with open(filedialog.askopenfilename(defaultextension = ".txt"), 'r') as reader:
+            for line in reader:
+                #break out of loop once we get to last 3 lines
+                if len(line) < 20:
+                    self.generations = int(line.strip())
+                    break
+                new_early = []
+                new_late = []
+                genes = line.split(",")
+                early = genes[0].split("/")
+                late = genes[1].split("/")
+                new_early.append(early[0] == "True")
+                for i in range(6):
+                    new_early.append(int(early[i + 1]))
+                #do the same for late
+                new_late.append(late[0] == "True")
+                for i in range(6):
+                    new_late.append(int(late[i + 1]))
+                #now add player to new pop with those genes
+                new_pop.append(Player(DNA(new_early), DNA(new_late)))
+                #Player(DNA(early), DNA(late)) will be the format
+            self.best_score = int(reader.readline().strip())
+            self.average_score = float(reader.readline().strip())
+            self.population = new_pop
+            self.population_size = len(new_pop)
+            #now need to load in best stats
+            new_best_early = []
+            new_best_late = []
+            genes = reader.readline().split(",")
+            early = genes[0].split("/")
+            late = genes[1].split("/")
+            new_best_early.append(early[0] == "True")
+            for i in range(6):
+                new_best_early.append(int(early[i + 1]))
+            #do the same for late
+            new_best_late.append(late[0] == "True")
+            for i in range(6):
+                new_best_late.append(int(late[i + 1]))
+        self.best_early.genes = new_best_early
+        self.best_late.genes = new_best_late
+        self.update_window()
+        if debugging:
+            print("File read")
+
 
 
     def save(self):
         #save button
         if debugging:
             print("Save button pressed")
+        with open(filedialog.asksaveasfilename(defaultextension = ".txt"), 'w') as writer:
+            for p in self.population:
+                line = ""
+                for g in p.earlyDNA.genes:
+                    line += str(g) + "/"
+                line += ","
+                for g in p.lateDNA.genes:
+                    line += str(g) + "/"
+                line += "\n"
+                writer.write(line)
+            writer.write(str(self.generations) + "\n")
+            writer.write(str(self.best_score) + "\n")
+            writer.write(str(self.average_score) + "\n")
+            #now need to save best stats
+            line = ""
+            for g in self.best_early.genes:
+                line += str(g) + "/"
+            line += ","
+            for g in self.best_late.genes:
+                line += str(g) + "/"
+            line += "\n"
+            writer.write(line)
 
 
     def run(self, times_to_run = None):
@@ -1304,8 +1373,8 @@ class Evolution():
         while not self.paused:
             #add one to generations
             self.generations += 1
-            #if debugging:
-            print("Generation: " + str(self.generations))
+            if debugging:
+                print("Generation: " + str(self.generations))
             #see if we wanna stop
             if times_to_run != None:
                 if self.generations > times_to_run - 1:
@@ -1637,8 +1706,8 @@ class Evolving_Fights():
 # game.play()
 
 
-#evolve = Evolution()
-fight = Fights()
+evolve = Evolution()
+#fight = Fights()
 #ef = Evolving_Fights()
 
 # game = Game(False, True)
