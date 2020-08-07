@@ -12,8 +12,8 @@ general plan:
 - training class
 """
 
-debugging = True
-print_drawn = True
+debugging = False
+print_drawn = debugging
 
 class Card():
 	#A simple card, it just has a value
@@ -38,9 +38,9 @@ class Deck():
 
     def fill_deck(self):
         for i in range(13):
-            for j in range(7):
+            for j in range(8):
                 self.cards.append(Card(i))
-        for i in range(3):
+        for i in range(4):
             self.cards.append(Card(-5))
 
     def shuffle(self):
@@ -237,6 +237,8 @@ class DNA():
                 return True
             else:
                 return False
+        elif gene == 3:
+            return randint(1, 12)
         elif gene == 5:
             return randint(1, 6)
         elif gene == 6:
@@ -262,6 +264,8 @@ class Player():
         #make their board and a var for the card they last discarded
         self.board = Board()
         self.card_discarded = None
+        #for debugging
+        self.code = randint(0, 100000)
         #make their score variable
         self.score = 0
         #make a variable for if they won
@@ -996,6 +1000,7 @@ class Game():
             self.players.append(player1)
             self.players.append(player2)
         self.discard_pile_card = None
+        self.scores_check = []
 
     def print_discarded(self):
         print(str(self.discard_pile_card.visible_value) + " F")
@@ -1042,7 +1047,7 @@ class Game():
 
     def play_round(self):
         #for debugging
-        # turns = 0
+        #turns = 0
         #basic setup
         deck = Deck()
         self.deal(deck)
@@ -1058,7 +1063,12 @@ class Game():
 
         #play each player's turn
         while not round_over:
-            # turns += 1
+            #turns += 1
+            self.scores_check.append(self.players[0].board.get_score()) #could also count turns and if its more than like 5000 turns then do same thing
+            if len(self.scores_check) > 1000:
+                if self.scores_check[len(self.scores_check) - 1000] == self.scores_check[len(self.scores_check) - 1]:
+                    self.players[0].late["lowest to go out with"] = 10
+                    print("Made someone go out cuz game was never changing")
             for i in range(len(self.players)):
                 #check if deck is empty
                 if len(deck.cards) == 0:
@@ -1304,10 +1314,7 @@ class Evolution():
             self.games.clear()
             #fill up the games
             for i in range(0, self.population_size - 1, 2):
-                if debugging:
-                    self.games.append(Game(False, True, self.population[i], self.population[i + 1]))
-                else:
-                    self.games.append(Game(False, False, self.population[i], self.population[i + 1]))
+                self.games.append(Game(False, debugging, self.population[i], self.population[i + 1]))
             #play the games
             if debugging:
                 print("Games size: " + str(len(self.games)))
@@ -1534,49 +1541,41 @@ class Fights():
         self.first_run = False
         while not self.paused:
             winner = None
-            opponent_score = 0
-            fighter_score = 0
             #add one to generations
             self.total_fights += 1
-            #self.current_players_fights += 1     this was here but im moving it to only happen if the fighter wins
+            # self.current_players_fights += 1 #might change this again not sure
             #make the opponent
-            if self.pool == None or isinstance(self.pool, Player):
+            if self.pool == None:
                 opponent = Player()
+            elif isinstance(self.pool, Player):
+                opponent = self.pool
             else:
                 opponent = choice(self.pool)
                 opponent.mutate(0.01)
             #make the game and play it
-            while winner == None:
+            game = Game(False, debugging, self.fighter, opponent, 5)
+            game.play()
+            if self.fighter.winner:
+                winner = self.fighter
+                self.current_players_fights += 1
                 if debugging:
-                    game = Game(False, True, self.fighter, opponent)
-                else:
-                    game = Game(False, False, self.fighter, opponent) 
-                game.play()
-                #check for winner
-                if opponent.winner:
-                    opponent_score += 1
-                    if opponent_score > self.out_of / 2:
-                        winner = opponent
-                else:
-                    fighter_score += 1
-                    if fighter_score > self.out_of / 2:
-                        winner = self.fighter
-
-                    
-            #once there's a winner, do this
-            self.fighter = winner
-            if winner == opponent:
+                    print("Fighter won")
+            else:
+                winner = opponent
+                if debugging:
+                    print("Opponent won")
                 if self.current_players_fights > self.most_wins:
                     self.most_wins = self.current_players_fights
                     self.best_early = self.fighter.earlyDNA
                     self.best_late = self.fighter.lateDNA
-                    self.current_players_fights = 0
-                else:
-                    self.current_players_fights += 1
-            #     print("Fighter won")
-            # if self.fighter.winner:
-            #     print("Fighter won, from other if")
-            #otherwise fighter stays
+                self.current_players_fights = 0
+                    
+            if debugging:
+                print("Winner is: " + str(winner.code))
+            #once there's a winner, do this
+                
+            self.fighter = winner#really winner var is not necessary
+
             #update the window
             self.update_window()
             self.window.update()
