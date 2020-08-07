@@ -1288,7 +1288,7 @@ class Evolution():
         if debugging:
             print("Load button pressed")
         new_pop = []
-        with open(filedialog.askopenfilename(defaultextension = ".txt"), 'r') as reader:
+        with open(filedialog.askopenfilename(defaultextension = ".txt", initialdir = "Saves/Populations"), 'r') as reader:
             for line in reader:
                 #break out of loop once we get to last 3 lines
                 if len(line) < 20:
@@ -1338,7 +1338,7 @@ class Evolution():
         #save button
         if debugging:
             print("Save button pressed")
-        with open(filedialog.asksaveasfilename(defaultextension = ".txt"), 'w') as writer:
+        with open(filedialog.asksaveasfilename(defaultextension = ".txt", initialdir = "Saves/Populations"), 'w') as writer:
             for p in self.population:
                 line = ""
                 for g in p.earlyDNA.genes:
@@ -1594,12 +1594,50 @@ class Fights():
         #load button
         if debugging:
             print("Load button pressed")
+        with open(filedialog.askopenfilename(defaultextension = ".txt", initialdir = "Saves/Players"), 'r') as reader:
+            #load in general stats
+            self.total_fights = int(reader.readline().strip())
+            self.current_players_fights = int(reader.readline().strip())
+            self.most_wins = int(reader.readline().strip())
+            #now need to load in best genes
+            new_best_early = []
+            new_best_late = []
+            genes = reader.readline().split(",")
+            early = genes[0].split("/")
+            late = genes[1].split("/")
+            new_best_early.append(early[0] == "True")
+            for i in range(6):
+                new_best_early.append(int(early[i + 1]))
+            #do the same for late
+            new_best_late.append(late[0] == "True")
+            for i in range(6):
+                new_best_late.append(int(late[i + 1]))
+        self.best_early.genes = new_best_early
+        self.best_late.genes = new_best_late
+        self.fighter = Player(DNA(new_best_early), DNA(new_best_late))
+        self.update_window()
+        print("loaded player")
+        if debugging:
+            print("File read")
 
 
     def save(self):
         #save button
         if debugging:
             print("Save button pressed")
+        with open(filedialog.asksaveasfilename(defaultextension = ".txt", initialdir = "Saves/Players"), 'w') as writer:
+            writer.write(str(self.total_fights) + "\n")
+            writer.write(str(self.current_players_fights) + "\n")
+            writer.write(str(self.most_wins) + "\n")
+            #now need to save best stats
+            line = ""
+            for g in self.best_early.genes:
+                line += str(g) + "/"
+            line += ","
+            for g in self.best_late.genes:
+                line += str(g) + "/"
+            line += "\n"
+            writer.write(line)
 
 
     def run(self):
@@ -1706,8 +1744,8 @@ class Evolving_Fights():
 # game.play()
 
 
-evolve = Evolution()
-#fight = Fights()
+#evolve = Evolution()
+fight = Fights()
 #ef = Evolving_Fights()
 
 # game = Game(False, True)
