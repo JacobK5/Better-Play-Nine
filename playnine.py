@@ -12,8 +12,8 @@ general plan:
 - training class
 """
 
-debugging = False
-print_drawn = False
+debugging = True
+print_drawn = True
 
 class Card():
 	#A simple card, it just has a value
@@ -245,7 +245,14 @@ class DNA():
             return randint(0, 12)
 
     def print(self):
-        pass
+        print("horizontal preference: " + str(self.genes[0]))
+        print("lowest to take (from discard):: " + str(self.genes[1]))
+        print("lowest to keep (fron deck): " + str(self.genes[2]))
+        print("lowest to mitigate: " + str(self.genes[3]))
+        print("higest card to go for -10 with: " + str(self.genes[4]))
+        print("end: " + str(self.genes[5]))
+        print("lowest to go out with: " + str(self.genes[6]))
+
 
 
 
@@ -1163,7 +1170,7 @@ class Evolution():
 
         #make the window
         #set up window basics
-        if display_window:                                                      #TODO: Need to update this
+        if display_window:
             self.window = tk.Tk()
             self.stat_frm = tk.Frame(master = self.window, width=100, height=100)
             self.btn_frm = tk.Frame(master = self.window, width=100, height=100)
@@ -1287,8 +1294,8 @@ class Evolution():
         while not self.paused:
             #add one to generations
             self.generations += 1
-            if debugging:
-                print("Generation: " + str(self.generations))
+            #if debugging:
+            print("Generation: " + str(self.generations))
             #see if we wanna stop
             if times_to_run != None:
                 if self.generations > times_to_run - 1:
@@ -1297,7 +1304,10 @@ class Evolution():
             self.games.clear()
             #fill up the games
             for i in range(0, self.population_size - 1, 2):
-                self.games.append(Game(False, False, self.population[i], self.population[i + 1]))
+                if debugging:
+                    self.games.append(Game(False, True, self.population[i], self.population[i + 1]))
+                else:
+                    self.games.append(Game(False, False, self.population[i], self.population[i + 1]))
             #play the games
             if debugging:
                 print("Games size: " + str(len(self.games)))
@@ -1418,6 +1428,8 @@ class Fights():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Total Fights: 0"))
         #total players fights
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Current player's fights: Waiting for first run"))
+        #most wins
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Most Wins: 0"))
         #best genes
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
         #early genes
@@ -1519,7 +1531,6 @@ class Fights():
             self.fighter = Player()
         if isinstance(self.pool, Player) and self.first_run:
             self.fighter = self.pool
-            print("Made the fighter the best player so far")
         self.first_run = False
         while not self.paused:
             winner = None
@@ -1527,7 +1538,7 @@ class Fights():
             fighter_score = 0
             #add one to generations
             self.total_fights += 1
-            self.current_players_fights += 1
+            #self.current_players_fights += 1     this was here but im moving it to only happen if the fighter wins
             #make the opponent
             if self.pool == None or isinstance(self.pool, Player):
                 opponent = Player()
@@ -1536,7 +1547,10 @@ class Fights():
                 opponent.mutate(0.01)
             #make the game and play it
             while winner == None:
-                game = Game(False, False, self.fighter, opponent)
+                if debugging:
+                    game = Game(False, True, self.fighter, opponent)
+                else:
+                    game = Game(False, False, self.fighter, opponent) 
                 game.play()
                 #check for winner
                 if opponent.winner:
@@ -1554,11 +1568,11 @@ class Fights():
             if winner == opponent:
                 if self.current_players_fights > self.most_wins:
                     self.most_wins = self.current_players_fights
-                    print("Most wins is: " + str(self.most_wins))
-                    self.fighter.dna.print()
-                self.best_dna = DNA(opponent.dna.genes)
-                self.current_players_fights = 0
-            # else:
+                    self.best_early = self.fighter.earlyDNA
+                    self.best_late = self.fighter.lateDNA
+                    self.current_players_fights = 0
+                else:
+                    self.current_players_fights += 1
             #     print("Fighter won")
             # if self.fighter.winner:
             #     print("Fighter won, from other if")
@@ -1572,20 +1586,21 @@ class Fights():
     def update_window(self):
         self.lbl_frame_labels[0]["text"] = "Total Fights: " + str(self.total_fights)
         self.lbl_frame_labels[1]["text"] = "Current Player's Fights: " + str(self.current_players_fights)
-        self.lbl_frame_labels[4]["text"] = "horizontal preference: " + str(self.best_early.genes[0])
-        self.lbl_frame_labels[5]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
-        self.lbl_frame_labels[6]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
-        self.lbl_frame_labels[7]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
-        self.lbl_frame_labels[8]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
-        self.lbl_frame_labels[9]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
-        self.lbl_frame_labels[10]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
-        self.lbl_frame_labels[12]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
-        self.lbl_frame_labels[13]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
-        self.lbl_frame_labels[14]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
-        self.lbl_frame_labels[15]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
-        self.lbl_frame_labels[16]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
-        self.lbl_frame_labels[17]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
-        self.lbl_frame_labels[18]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
+        self.lbl_frame_labels[2]["text"] = "Most Wins: " + str(self.most_wins)
+        self.lbl_frame_labels[5]["text"] = "horizontal preference: " + str(self.best_early.genes[0])
+        self.lbl_frame_labels[6]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
+        self.lbl_frame_labels[7]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
+        self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
+        self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
+        self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
+        self.lbl_frame_labels[11]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
+        self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
+        self.lbl_frame_labels[14]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
+        self.lbl_frame_labels[15]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
+        self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
+        self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
+        self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
+        self.lbl_frame_labels[19]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
 
 class Evolving_Fights():
     def __init__(self):
@@ -1595,9 +1610,9 @@ class Evolving_Fights():
         #make a genetic algorithm run for 150 generations
         genetic = Evolution(False)
         print("Running Evolution")
-        genetic.run(5)
+        genetic.run(50)
         #pool = genetic.population #if its entire pool
-        pool = Player(genetic.best_dna)#use best dna from evolution as a starting point
+        pool = Player(genetic.best_early, genetic.best_late)#use best dna from evolution as a starting point
         print("Best score is: " + str(genetic.best_score))
         fighting = Fights(pool)
         fighting.start()
@@ -1623,8 +1638,8 @@ class Evolving_Fights():
 # game.play()
 
 
-evolve = Evolution()
-#fight = Fights()
+#evolve = Evolution()
+fight = Fights()
 #ef = Evolving_Fights()
 
 # game = Game(False, True)
