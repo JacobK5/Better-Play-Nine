@@ -1,6 +1,11 @@
 from random import shuffle, choice, random, randint #randint is used as randint(5,10) 5 and 10 can be chosen
 import tkinter as tk
 from tkinter import filedialog
+import win32gui
+import win32con
+import win32com
+import win32com.client
+import re
 
 """
 general plan:
@@ -223,7 +228,7 @@ class DNA():
         lowest to mitigate: lowest amount you need to save for it to mitigate
         higest card to go for -10 with
         end
-        lowest to go out with
+        highest to go out with
         """
         if genes == None:
             self.genes = []
@@ -254,7 +259,7 @@ class DNA():
         print("lowest to mitigate: " + str(self.genes[3]))
         print("higest card to go for -10 with: " + str(self.genes[4]))
         print("end: " + str(self.genes[5]))
-        print("lowest to go out with: " + str(self.genes[6]))
+        print("highest to go out with: " + str(self.genes[6]))
 
 
 
@@ -301,7 +306,7 @@ class Player():
             "lowest to mitigate": next(late_iterator),
             "highest for -10": next(late_iterator),
             "end for -10": next(late_iterator),
-            "lowest to go out with": next(late_iterator)
+            "highest to go out with": next(late_iterator)
         }
         #variables for taking the turn
         self.one_flipped_per_row = False
@@ -452,7 +457,7 @@ class Player():
                             self.switch_cards(card, col, 0)
                             if debugging:
                                 print("Putting joker in a new col")
-                                return True
+                            return True
                     #if not done yet
                     #Note: highest unmatched can't be none here, since we checked for empty cols already
                     col, row = self.board.get_location(self.board.get_highest_unmatched())
@@ -653,7 +658,7 @@ class Player():
                     test_board = self.board.copy()
                     test_board.cards[col][row] = card
                     test_score = test_board.get_score()
-                    if test_score <= self.late.get("lowest to go out with"):
+                    if test_score <= self.late.get("highest to go out with"):
                         #then go out
                         self.switch_cards(card, col, row)
                         if debugging:
@@ -712,7 +717,7 @@ class Player():
                     row = self.board.get_unflipped(col)
             test_board.cards[col][row] = card
             test_score = test_board.get_score()
-            if test_score <= self.late.get("lowest to go out with"):
+            if test_score <= self.late.get("highest to go out with"):
                 #then go out
                 self.switch_cards(card, col, row)
                 if debugging:
@@ -927,14 +932,14 @@ class User(Player):
         self.board.cards[col][row].flip()
         self.board.cards[col2][row2].flip()
 
-    def take_turn(self, deck, discarded):
-        draw_card = input("Enter draw to draw a card, or discard to use the discarded card ")
-        while draw_card.lower() != "discard" and draw_card.lower() != "draw":
+    def take_turn(self, deck, discarded, opponents):
+        draw_card = input("Enter draw to draw a card, or keep to use the discarded card ")
+        while draw_card.lower() != "keep" and draw_card.lower() != "draw":
             print("Invalid input")
-            draw_card = input("Enter draw to draw a card, or discard to use the discarded card ")
+            draw_card = input("Enter draw to draw a card, or keep to use the discarded card ")
         if draw_card.lower() == "draw":
             card_drawn = deck.draw()
-            print("You drew " + str(drawn.visible_value))
+            print("You drew " + str(card_drawn.visible_value))
             keep = input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ")
             while keep.lower() != "keep" and keep.lower() != "flip":
                 print("Invalid input")
@@ -952,7 +957,7 @@ class User(Player):
 
                 self.card_discarded = self.board.cards[col][row]
                 self.card_discarded.flip()
-                self.board.cards[col][row] = drawn
+                self.board.cards[col][row] = card_drawn
             elif keep.lower() == "flip":
                 col = int(input("Enter col of card to flip ")) - 1
                 while col < 0 or col > 3:
@@ -965,8 +970,8 @@ class User(Player):
                     row = int(input("Enter row of card to flip ")) - 1
 
                 self.board.cards[col][row].flip()
-                self.card_discarded = drawn
-        elif draw_card.lower() == "discard":
+                self.card_discarded = card_drawn
+        elif draw_card.lower() == "keep":
             col = int(input("Enter col of where to put your card ")) - 1
             while col < 0 or col > 3:
                 print("Must be between 1 and 4")
@@ -1069,7 +1074,7 @@ class Game():
             self.scores_check.append(self.players[0].board.get_score()) #could also count turns and if its more than like 5000 turns then do same thing
             if len(self.scores_check) > 1000:
                 if self.scores_check[len(self.scores_check) - 1000] == self.scores_check[len(self.scores_check) - 1]:
-                    self.players[0].late["lowest to go out with"] = 10
+                    self.players[0].late["highest to go out with"] = 10
                     print("Made someone go out cuz game was never changing")
             for i in range(len(self.players)):
                 #check if deck is empty
@@ -1156,7 +1161,7 @@ class Game():
 
 
 class Evolution():
-    def __init__(self, display_window = True):
+    def __init__(self, master, display_window = True):
         #need to set up both actual evolution stuff and tkinter window stuff
         #evolution stuff
         self.population_size = 50 #must be even number
@@ -1178,93 +1183,97 @@ class Evolution():
 
 
         self.display_window = display_window
+        self.master = master
 
 
         #make the window
         #set up window basics
         if display_window:
-            self.window = tk.Tk()
-            self.stat_frm = tk.Frame(master = self.window, width=100, height=100)
-            self.btn_frm = tk.Frame(master = self.window, width=100, height=100)
-            self.title_lbl = tk.Label(text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
-            #self.window.configure(background="white")
-            # self.stat_frm.config(bg = "white")
-            # self.btn_frm.config(bg = "white")
-            # self.title_lbl.config(bg = "white")
-            self.title_lbl.pack()
-
-            #set up label frame
-            self.lbl_frame_labels = []
-            #generations
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Generations: 0"))
-            #best score
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best score: Waiting for first run"))
-            #average score
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Average score: Waiting for first run"))
-            #best genes
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
-            #early genes
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Early:"))
-            #horizontal preference (true or false)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
-            #lowest to take (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
-            #lowest to keep (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
-            #lowest to mitigate (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
-            #highest for -10 (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
-            #end (btwn 1 and 6)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end (btwn 1 and 6): Waiting for first run"))
-            #lowest to go out with (btwn -9 and 20)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
-            #late genes
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
-            #horizontal preference (true or false)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
-            #lowest to take (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
-            #lowest to keep (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
-            #lowest to mitigate (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
-            #highest for -10 (btwn 0 and 12)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
-            #end for -10 (btwn 1 and 6)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
-            #lowest to go out with (btwn -9 and 20)
-            self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
-            
-            #add all labels to the frame
-            for l in self.lbl_frame_labels:
-                l.pack(anchor = "w")
-                #l.config(bg = "white")
-                if debugging:
-                    l.config(borderwidth=1, relief="solid")
-
-            #set up button frame
-            self.btn_frame_buttons = []
-            #start button
-            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Start", command = self.start))
-            #stop button
-            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Stop", command = self.stop))
-            #load button
-            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
-            #save button
-            self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
-
-            #add all buttons to the frame
-            for b in self.btn_frame_buttons:
-                b.pack()
-
-            #add the frames to the window
-            self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
-            self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+            self.make_window()
 
 
-            #start up the window loop
-            self.window.mainloop()
+    def make_window(self):
+        self.stat_frm = tk.Frame(master = self.master, width=100, height=100)
+        self.btn_frm = tk.Frame(master = self.master, width=100, height=100)
+        self.title_lbl = tk.Label(master = self.master, text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
+        #self.window.configure(background="white")
+        # self.stat_frm.config(bg = "white")
+        # self.btn_frm.config(bg = "white")
+        # self.title_lbl.config(bg = "white")
+        self.title_lbl.pack()
+
+        #set up label frame
+        self.lbl_frame_labels = []
+        #generations
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Generations: 0"))
+        #best score
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best score: Waiting for first run"))
+        #average score
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Average score: Waiting for first run"))
+        #best genes
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
+        #early genes
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Early:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
+        #lowest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
+        #lowest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end (btwn 1 and 6): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
+        #late genes
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
+        #lowest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
+        #lowest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end for -10 (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
+        
+        #add all labels to the frame
+        for l in self.lbl_frame_labels:
+            l.pack(anchor = "w")
+            #l.config(bg = "white")
+            if debugging:
+                l.config(borderwidth=1, relief="solid")
+
+        #set up button frame
+        self.btn_frame_buttons = []
+        #start button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Start", command = self.start))
+        #stop button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Stop", command = self.stop))
+        #load button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
+        #save button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
+
+        #add all buttons to the frame
+        for b in self.btn_frame_buttons:
+            b.pack()
+
+        #add the frames to the window
+        self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+        self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+
+
+        #start up the window loop
+        #self.window.mainloop()
 
 
     def start(self):
@@ -1274,6 +1283,7 @@ class Evolution():
         #make paused false, call run
         self.paused = False
         self.run()
+
 
     def stop(self):
         #stop button
@@ -1331,7 +1341,6 @@ class Evolution():
         self.update_window()
         if debugging:
             print("File read")
-
 
 
     def save(self):
@@ -1440,7 +1449,7 @@ class Evolution():
             if self.display_window:
                 #update the window
                 self.update_window()
-                self.window.update()
+                self.master.update()
 
         
 
@@ -1454,19 +1463,19 @@ class Evolution():
         self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
         self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
         self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
-        self.lbl_frame_labels[11]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
+        self.lbl_frame_labels[11]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
         self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
         self.lbl_frame_labels[14]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
         self.lbl_frame_labels[15]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
         self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
         self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
         self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
-        self.lbl_frame_labels[19]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
+        self.lbl_frame_labels[19]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
 
 
 
 class Fights():
-    def __init__(self, pool = None):
+    def __init__(self, master, pool = None):
         #need to set up both actual evolution stuff and tkinter window stuff
         #fight stuff
         self.fighter = None
@@ -1486,13 +1495,19 @@ class Fights():
         self.best_early = DNA() #it's easier to just have it start as a random one
         self.best_late = DNA()
 
-
         #make the window
+        self.master = master
+        self.make_window()
+
+        if isinstance(self.pool, Player):
+            self.start()
+
+
+    def make_window(self):
         #set up window basics
-        self.window = tk.Tk()
-        self.stat_frm = tk.Frame(master = self.window, width=100, height=100)
-        self.btn_frm = tk.Frame(master = self.window, width=100, height=100)
-        self.title_lbl = tk.Label(text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
+        self.stat_frm = tk.Frame(master = self.master, width=100, height=100)
+        self.btn_frm = tk.Frame(master = self.master, width=100, height=100)
+        self.title_lbl = tk.Label(master = self.master, text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
         #self.window.configure(background="white")
         # self.stat_frm.config(bg = "white")
         # self.btn_frm.config(bg = "white")
@@ -1522,8 +1537,8 @@ class Fights():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
         #end (btwn 1 and 6)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end (btwn 1 and 6): Waiting for first run"))
-        #lowest to go out with (btwn -9 and 20)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
         #late genes
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
         #horizontal preference (true or false)
@@ -1538,8 +1553,8 @@ class Fights():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
         #end for -10 (btwn 1 and 6)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
-        #lowest to go out with (btwn -9 and 20)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to go out with (btwn -9 and 20): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
 
         #add all labels to the frame
         for l in self.lbl_frame_labels:
@@ -1566,13 +1581,8 @@ class Fights():
         #add the frames to the window
         self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
         self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
-
-
-        if isinstance(self.pool, Player):
-            self.start()
         #start up the window loop
-        self.window.mainloop()
-
+        #self.window.mainloop()
 
     def start(self):
         #start button
@@ -1685,7 +1695,7 @@ class Fights():
 
             #update the window
             self.update_window()
-            self.window.update()
+            self.master.update()
 
         
 
@@ -1699,14 +1709,14 @@ class Fights():
         self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
         self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
         self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
-        self.lbl_frame_labels[11]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
+        self.lbl_frame_labels[11]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
         self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
         self.lbl_frame_labels[14]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
         self.lbl_frame_labels[15]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
         self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
         self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
         self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
-        self.lbl_frame_labels[19]["text"] = "lowest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
+        self.lbl_frame_labels[19]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
 
 class Evolving_Fights():
     def __init__(self):
@@ -1725,208 +1735,156 @@ class Evolving_Fights():
 
 
 
+class WindowManager:
+    def __init__(self):
+        self._handle = None
+
+    def _window_enum_callback( self, hwnd, wildcard ):
+        if re.match(wildcard, str(win32gui.GetWindowText(hwnd))) != None:
+            self._handle = hwnd
+
+    #CASE SENSITIVE
+    def find_window_wildcard(self, wildcard):
+        self._handle = None
+        win32gui.EnumWindows(self._window_enum_callback, wildcard)
+
+    def set_foreground(self):
+        win32gui.ShowWindow(self._handle, win32con.SW_RESTORE)
+        win32gui.SetWindowPos(self._handle,win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE + win32con.SWP_NOSIZE)  
+        win32gui.SetWindowPos(self._handle,win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE + win32con.SWP_NOSIZE)  
+        win32gui.SetWindowPos(self._handle,win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_SHOWWINDOW + win32con.SWP_NOMOVE + win32con.SWP_NOSIZE)
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shell.SendKeys('%')
+        win32gui.SetForegroundWindow(self._handle)
+
+    def find_and_set(self, search):
+        self.find_window_wildcard(search)
+        self.set_foreground()
+
+
+
+class Main_Window:
+    def __init__(self, master):
+        self.master = master
+        self.frame = tk.Frame(self.master)
+        self.evolution = tk.Button(self.frame, text = "Evolution", width = 15, height = 2, command = self.evolution_button)
+        self.evolution.pack()
+        self.fight = tk.Button(self.frame, text = "Fight", width = 15, height = 2, command = self.fight_button)
+        self.fight.pack()
+        self.play_round = tk.Button(self.frame, text = "Play Round", width = 15, height = 2, command = self.play_round_button)
+        self.play_round.pack()
+        self.play_game = tk.Button(self.frame, text = "Play Nine", width = 15, height = 2, command = self.play_game_button)
+        self.play_game.pack()
+        self.frame.pack()
+        self.new_window = None
+        self.game = None
+
+
+    def evolution_button(self):
+        self.new_window = tk.Toplevel(self.master)
+        self.new_window.protocol("WM_DELETE_WINDOW", self.window_closed)
+        self.master.withdraw()
+        ev = Evolution(self.new_window)
+
+    def fight_button(self):
+        self.new_window = tk.Toplevel(self.master)
+        self.new_window.protocol("WM_DELETE_WINDOW", self.window_closed)
+        self.master.withdraw()
+        ft = Fights(self.new_window)
+
+    def play_round_button(self):
+        self.game = False
+        self.new_window = tk.Toplevel(self.master)
+        self.new_window.protocol("WM_DELETE_WINDOW", self.window_closed)
+        label = tk.Label(self.new_window, text = "Do you want to load your opponent? (If not opponent will be random)")
+        label.pack()
+        yes = tk.Button(self.new_window, text = "Yes", width = 15, height = 2, command = self.yes_button)
+        yes.pack()
+        no = tk.Button(self.new_window, text = "No", width = 15, height = 2, command = self.no_button)
+        no.pack()
+        self.master.withdraw()
+
+    def play_game_button(self):
+        self.game = True
+        self.new_window = tk.Toplevel(self.master)
+        self.new_window.protocol("WM_DELETE_WINDOW", self.window_closed)
+        label = tk.Label(self.new_window, text = "Do you want to load your opponent? (If not opponent will be random)")
+        label.pack()
+        yes = tk.Button(self.new_window, text = "Yes", width = 15, height = 2, command = self.yes_button)
+        yes.pack()
+        no = tk.Button(self.new_window, text = "No", width = 15, height = 2, command = self.no_button)
+        no.pack()
+        self.master.withdraw()
+
+    def yes_button(self):
+        self.new_window.destroy()
+        #load opponent
+        with open(filedialog.askopenfilename(defaultextension = ".txt", initialdir = "Saves/Players"), 'r') as reader:
+            for i in range(3):
+                reader.readline()
+            earlyDNA = []
+            lateDNA = []
+            genes = reader.readline().split(",")
+            early = genes[0].split("/")
+            late = genes[1].split("/")
+            earlyDNA.append(early[0] == "True")
+            for i in range(6):
+                earlyDNA.append(int(early[i + 1]))
+            #do the same for late
+            lateDNA.append(late[0] == "True")
+            for i in range(6):
+                lateDNA.append(int(late[i + 1]))
+        #give focus to cmd
+        w = WindowManager()
+        w.find_and_set(".*cmd.exe*")
+        #now make and play the game
+        game = Game(True, True, User(), Player(DNA(earlyDNA), DNA(lateDNA)))
+        if self.game:
+            game.play()
+        else:
+            game.play_round()
+        self.master.deiconify()
+
+    def no_button(self):
+        self.new_window.destroy()
+        #give focus to cmd
+        w = WindowManager()
+        w.find_and_set(".*cmd.exe*")
+        game = Game(True, True, User(), Player())
+        if self.game:
+            game.play()
+        else:
+            game.play_round()
+        self.master.deiconify()
+
+    def window_closed(self):
+        self.new_window.destroy()
+        self.master.deiconify()
+
+
+
+def main(): 
+    root = tk.Tk()
+    app = Main_Window(root)
+    root.mainloop()
+
+if __name__ == '__main__':
+    main()
 
 
 
 
-
-#pause button will make paused True, unpause button will make paused False and call Run
-#label["text"] = "whatever"   is how you change label text
-
-
-
-# game = Game(False, Player(), Player())
-# for p in game.players:
-#     print("Stats")
-#     print("")
-#     p.dna.print()
-#     print("")
-# game.play()
-
-
-#evolve = Evolution()
-fight = Fights()
-#ef = Evolving_Fights()
-
-# game = Game(False, True)
-# game.play_round()
 
 """
-Testing stuff to learn tkinter
-
-def button():
-    print("Button clicked")
-
-window = tk.Tk()
-stat_frame = tk.Frame(master=window, width=100, height=100, bg="red")
-button_frame = tk.Frame(master=window, width=100, height=100, bg="yellow")
-
-label = tk.Label(text = "PlayNine Evolution", fg = "black", bg = "white", width = 20, height = 3)
-label.pack()
-button_frame.pack(fill=tk.BOTH, side=tk.RIGHT)
-stat_frame.pack(fill=tk.BOTH, side=tk.RIGHT)
-test_button = tk.Button(master = button_frame, text = "Testing", command = button)
-test_button.pack()
-
-
-window.mainloop()
-"""
-# dna = DNA()
-# dna.print()
-
-
-"""
-NOTES:
-Should (probably) be 3 stages to the game:
-1. Getting one card flipped in each col
-2. Filling in board till one card left
-3. Finishing the round
-Alternatively, if vertical is preferred (would rather place cards in same col as already flipped cards):
-Same but without step 1
-
-Logic for each stage:
-1. 
-a. Check if discard matches a card you're trying to match, if it is match it (obviously)
-b. If drawing bias is low enough and it is low enough, or if it is low enough and is same as a match you already 
-   have take the discarded card and put it in a new unflipped col
-c. Otherwise, draw a card
-d. If card drawn matches, put it with the match
-e. If it is low enough, or if it is low enough and is same as a match you already have, put it in a new unflipped col
-f. Otherwise, flip a card in a new unflipped col
-Note: Steps are essentially the same for checking the card, which should be in its own function
-
-2.
-a. Check if discard matches a card you're trying to match, if it is match it (obviously) (unless the other card is going for -10 already)
-b. If the discard card is same as a match you've already made and it is early enough and it is low enough, take it and replace your highest
-   unmatched card if you save enough otherwise put it across from your highest card (tough choice here, plus it makes a tough choice later on
-   if you can match the highest card)
-c. If discard is low enough and it is late enough and the drawing bias is low, replace highest card with discard (mitigate)
-d. If it is low enough and drawing bias is low, place the discarded card with the highest card
-e. Otherwise, draw a card
-f. Check if it matches a card you're trying to match, if it is match it (obviously) (unless the other card is going for -10 already)
-g. If the drawn card is same as a match you've already made and it is early enough and it is low enough, take it and replace your highest
-   unmatched card if you save enough otherwise put it across from your highest card (tough choice here, plus it makes a tough choice later on
-   if you can match the highest card)
-h. If drawn card is low enough and it is late enough, replace highest card with discard (mitigate)
-i. If it is low enough and flipping bias is low, place the drawn card with the highest card
-j. Otherwise, flip a card across from the highest card
-
-3. 
-a. If discard matches an unmatched card that doesn't end the game, match it (duh) (unless the other card is going for -10 already)
-b. If the discard matches the card that ends the game, and you'll end with a low enough amount of points, match it
-c. If discard is same as a match you have and isn't too much higher than your highest unmatched card and -10 bias is high, replace highest
-   unmatched card with discard
-d. If discard is lower than your highest unmatched card and it mitigates enough and your drawing bias is low, replace highest card with discard
-e. Otherwise, draw a card
-f. If drawn card matches an unmatched card that doesn't end the game, match it (duh) (unless the other card is going for -10 already)
-g. If the drawn card matches the card that ends the game, and you'll end with a low enough amount of points, match it
-h. If drawn card is same as a match you have and isn't too much higher than your highest unmatched card and -10 bias is high, replace highest
-   unmatched card with discard
-i. If drawn is lower than your highest unmatched card and your highest unmatched card isn't going for -10 if -10 bias is high, replace highest 
-   card with discard (need to figure out the math for this step with -10 bias), otherwise replace next highest unmatched card
-
-
-Variables that each step use (not final):
-1.
-a. -10 bias, latest you go for -10, lowest for -10 (possibly something else about how much you save, or just factor that into calculation with -10 bias)
-b. drawing bias, lowest for -10, lowest to keep
-c. None
-d. -10 bias, latest you go for -10, lowest for -10 (same as step a)
-e. lowest for -10, lowest to keep (same as b but without drawing bias)
-f. None
-
-2.
-a. -10 bias, latest you go for -10. lowest for -10
-b. -10 bias, latest you go for -10. lowest for -10, some kind of mitigation factor and time factor
-c. mitigation factor, time factor, drawing bias
-d. lowest to keep, drawing bias
-e. None
-f. -10 bias, latest you go for -10. lowest for -10
-g. -10 bias, latest you go for -10. lowest for -10, some kind of mitigation factor and time factor
-h. mitigation factor, time factor
-i. flipping bias, lowest to keep (maybe should be different from lowest to keep)
-j. None
-
-3.
-a. -10 bias, latest you go for -10. lowest for -10
-b. Lowest to go out with
-c. -10 bias, highest you'll gain for -10
-d. drawing bias, possibly a new mitigation factor (might just somehow multiply drawing bias by how much you'll save)
-e. None
-f. -10 bias, latest you go for -10. lowest for -10 (not sure these are exactly what I want here)
-g. Lowest to go out with
-h. -10 bias, highest you'll gain for -10
-i. -10 bias (maybe a different version of it though)
-
-
-NOTE: Flipping bias is only for flipping across from a flipped card, not flipping a card in a totally unflipped row, since there is definitive mathematical
-      logic for taking cards below 5 and not otherwise
-NOTE: There should probably be one time factor for anything related to time, and you multiply it by how many unflipped cards your opponent with the
-      lowest amount of unflipped cards has left, to determine how much you care about the time left
-NOTE: In general, the more variables the better, since some variable values may do well early game but may do not as well in very similar but slightly
-      different situations later in the game
-NOTE: At all points, if a 0 is drawn and there is an unmatched joker the 0 should be put with the joker
-
-Trying to figure out conditions for each step:
-1.
-a. Does it match? If yes, match it (in theory this is always replacing a face down card at this point) (including matching joker with 0)
-b. If discard is a joker, keep it (in unmatched col). Is discard same as match you already have? If yes, is it low enough to go for -10 (is it lower than 
-   lowest for -10 times time multiplier over how many unflipped cards opponent has)? Then keep it, otherwise, if it is lower than lowest to keep and 
-   random number btwn 0 and 1 is higher than drawing bias (so that a high drawing bias means you draw more often), keep it
-c. Nothing
-d. Does it match? If yes, match it
-e. Is it same as match you already have? If yes, is it low enough to go for -10 (is it lower than lowest for -10 times time multiplier over how many 
-   unflipped cards opponent has), then keep it.
-
-
-List of all DNA variables:
-horizontal_preference (true or false)
-drawing_bias (btwn 0 and 1)
-flipping_bias (btwn 0 and 1)
-minus10_bias (btwn 0 and 1)
-time_multiplier (btwn 1 and 10) - might need to be slightly different
-lowest_to_keep (btwn 0 and 12)
-lowest_for_minus10 (btwn 0 and 12)
-lowest_to_go_out_with (btwn 0 and 10) - eventually will be based on opponents boards too
-
-
-
-
-
-Time multiplier:
-
-Opponent can have between 6 and 1 cards unflipped. 1 over these gives a range from 0.16 to 1. Maybe it can work like time multiplier over cards unflipped
-is how much you subtract from lowest to keep (normal and -10), and lowest youll mitigate to save
-
-
-
-Should put joker logic here seperately (since it can be handled seperately in an initial if statement when checking a card):
-
 Known bugs:
-
 Cannot choose from an empty sequence after first generation when choosing from mating pool
-
-If we have a situation like:
- 0  2 11  F
- F  2  0  F
-and then we match one of the 0s, 0 isn't added to going for -10
-
-Card can be kept not because it goes for -10 but because it is low enough, even if it goes for -10,
-and if that happens it isn't added to going for -10
-
-Possible bug: If both cards in a col are going for -10 with different numbers, they might not get matched since
-they'd have to replace a -10 to do it. This might never happen with how I wrote it though
-- should be fixed now hopefully (if I did it well)
-
-
-
+Forced to flip when playing as user when only one is left unflipped
+When playing as user my score was calculated wrong 2 times I played
 
 What I have left to do:
-Really need to fix bugs related tp -10, they'll likely have a big effect on what strategy is best
+Fix bugs for genetic part, not sure what it is yet, but it's there
 
 Other idea:
-Have player play random players till it loses, then have that player fight random players till it loses
-Now combine it with genetic algorithm somehow
-
-Should print out stats of fighter who won the most fights and how many they won
+Add in tournament style version
+Should definetely make initial window where you choose btwn evolve, fight, evofight, and later tournament
 """
