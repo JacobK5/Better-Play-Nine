@@ -7,16 +7,6 @@ import win32com
 import win32com.client
 import re
 
-"""
-general plan:
-- card class, simple
-- deck class, also simple
-- board class, (no pair class)
-- player class
-- game class
-- maybe a population class, not sure though
-- training class
-"""
 
 debugging = False
 print_drawn = debugging
@@ -897,97 +887,130 @@ class User(Player):
         super(User, self).__init__()
 
     def flip_two(self):
-        col = int(input("Enter col of card to flip ")) - 1
-        while col < 0 or col > 3:
-            print("Must be between 1 and 4")
-            col = int(input("Enter col of card to flip ")) - 1
-
-        row = int(input("Enter row of card to flip ")) - 1
-        while row < 0 or row > 1:
-            print("Must be between 1 and 2")
-            row = int(input("Enter row of card to flip ")) - 1
-
-        col2 = int(input("Enter col of second card to flip ")) - 1
-        while col2 < 0 or col2 > 3:
-            print("Must be between 1 and 4")
-            col2 = int(input("Enter col of card to flip ")) - 1
-
-        row2 = int(input("Enter row of second card to flip ")) - 1
-        while row2 < 0 or row2 > 1:
-            print("Must be between 1 and 2")
-            row2 = int(input("Enter row of card to flip ")) - 1
+        col = self.get_input("Enter col of card to flip ", [0, 1, 2, 3], True)
+        if col == "exit":
+            return "exit"
+        row = self.get_input("Enter row of card to flip ", [0, 1], True)
+        if row == "exit":
+            return "exit"
+        col2 = self.get_input("Enter col of second card to flip ", [0, 1, 2, 3], True)
+        if col2 == "exit":
+            return "exit"
+        row2 = self.get_input("Enter row of second card to flip ", [0, 1], True)
+        if row2 == "exit":
+            return "exit"
 
         while(col == col2 and row == row2):
             print("You need to flip 2 different cards")
-            col2 = int(input("Enter col of second card to flip ")) - 1
-            while col2 < 0 or col2 > 3:
-                print("Must be between 1 and 4")
-                col2 = int(input("Enter col of card to flip ")) - 1
-
-            row2 = int(input("Enter row of second card to flip ")) - 1
-            while row2 < 0 or row2 > 1:
-                print("Must be between 1 and 2")
-                row2 = int(input("Enter row of card to flip ")) - 1
+            col2 = self.get_input("Enter col of second card to flip ", [0, 1, 2, 3], True)
+            if col2 == "exit":
+                return "exit"
+            row2 = self.get_input("Enter row of second card to flip ", [0, 1], True)
+            if row2 == "exit":
+                return "exit"
 
         self.board.cards[col][row].flip()
         self.board.cards[col2][row2].flip()
 
     def take_turn(self, deck, discarded, opponents):
-        draw_card = input("Enter draw to draw a card, or keep to use the discarded card ")
-        while draw_card.lower() != "keep" and draw_card.lower() != "draw":
-            print("Invalid input")
-            draw_card = input("Enter draw to draw a card, or keep to use the discarded card ")
-        if draw_card.lower() == "draw":
+        draw_card = self.get_input("Enter draw to draw a card, or keep to use the discarded card ", ["draw", "keep"])
+        if draw_card == "draw":
+            #check if we're supposed to flip
+            flip = True
+            one_flipped_count = 0
+            neither_flipped_count = 0
+            for col in range(4):
+                if self.board.get_state(col) == Board.ONE_FLIPPED:
+                    one_flipped_count += 1
+                if self.board.get_state(col) == Board.NEITHER_FLIPPED:
+                    neither_flipped_count += 1
+            if one_flipped_count == 1 and neither_flipped_count == 0:
+                flip = False
+
             card_drawn = deck.draw()
             print("You drew " + str(card_drawn.visible_value))
-            keep = input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ")
-            while keep.lower() != "keep" and keep.lower() != "flip":
-                print("Invalid input")
-                keep = input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ")
-            if keep.lower() == "keep":
-                col = int(input("Enter col of where to put your card ")) - 1
-                while col < 0 or col > 3:
-                    print("Must be between 1 and 4")
-                    col = int(input("Enter col of card to flip ")) - 1
-
-                row = int(input("Enter row of where to put your card ")) - 1
-                while row < 0 or row > 1:
-                    print("Must be between 1 and 2")
-                    row = int(input("Enter row of card to flip ")) - 1
+            if flip:
+                keep = self.get_input("Do you want to keep the card you drew (enter keep), or flip a card on your board (enter flip)? ", ["keep", "flip"])
+            else:
+                keep = self.get_input("Do you want to keep the card you drew (enter keep), or end the turn (enter end)? ", ["keep", "end"])
+                if keep == "end":
+                    return False
+            if keep == "exit":
+                return "exit"
+            if keep == "keep":
+                col = self.get_input("Enter col of where to put your card ", [0, 1, 2, 3], True)
+                if col == "exit":
+                    return "exit"
+                row = self.get_input("Enter row of where to put your card ", [0, 1], True)
+                if row == "exit":
+                    return "exit"
 
                 self.card_discarded = self.board.cards[col][row]
                 self.card_discarded.flip()
                 self.board.cards[col][row] = card_drawn
-            elif keep.lower() == "flip":
-                col = int(input("Enter col of card to flip ")) - 1
-                while col < 0 or col > 3:
-                    print("Must be between 1 and 4")
-                    col = int(input("Enter col of card to flip ")) - 1
+            elif keep == "flip":
+                col = self.get_input("Enter col of card to flip ", [0, 1, 2, 3], True)
+                if col == "exit":
+                    return "exit"
+                row = self.get_input("Enter row of card to flip ", [0, 1], True)
+                if row == "exit":
+                    return "exit"
 
-                row = int(input("Enter row of card to flip ")) - 1
-                while row < 0 or row > 1:
-                    print("Must be between 1 and 2")
-                    row = int(input("Enter row of card to flip ")) - 1
+                while self.board.cards[col][row].visible_value != "F":
+                    print("You must flip an unflipped card")
+                    col = self.get_input("Enter col of card to flip ", [0, 1, 2, 3], True)
+                    if col == "exit":
+                        return "exit"
+                    row = self.get_input("Enter row of card to flip ", [0, 1], True)
+                    if row == "exit":
+                        return "exit"
 
                 self.board.cards[col][row].flip()
                 self.card_discarded = card_drawn
-        elif draw_card.lower() == "keep":
-            col = int(input("Enter col of where to put your card ")) - 1
-            while col < 0 or col > 3:
-                print("Must be between 1 and 4")
-                col = int(input("Enter col of card to flip ")) - 1
-
-            row = int(input("Enter row of where to put your card ")) - 1
-            while row < 0 or row > 1:
-                print("Must be between 1 and 2")
-                row = int(input("Enter row of card to flip ")) - 1
+        elif draw_card == "keep":
+            col = self.get_input("Enter col of where to put your card ", [0, 1, 2, 3], True)
+            if col == "exit":
+                return "exit"
+            row = self.get_input("Enter row of where to put your card ", [0, 1], True)
+            if row == "exit":
+                return "exit"
 
             self.card_discarded = self.board.cards[col][row]
             self.card_discarded.flip()
             self.board.cards[col][row] = discarded
         return self.board.all_flipped()
 
+    def take_last_turn(self, deck, discarded, opponents):
+        print("This is your last turn")
+        exited = self.take_turn(deck, discarded, opponents)
+        self.board.flip_all()
+        return exited
 
+
+    def get_input(self, message, valid_inputs, is_int = False):
+        if is_int:
+            real_valid = [x + 1 for x in valid_inputs]
+        else:
+            real_valid = valid_inputs
+        real_valid.append("exit")
+        my_input = input(message)
+        if my_input == "exit":
+            return "exit"
+        if is_int:
+            my_input = int(my_input) - 1
+        else:
+            my_input = my_input.lower()
+        while my_input not in valid_inputs:
+            print("Invalid input, enter again (valid inputs are: " + str(real_valid))
+            my_input = input(message)
+            if my_input == "exit":
+                return "exit"
+            if is_int:
+                my_input = int(my_input) - 1
+            else:
+                my_input = my_input.lower()
+        
+        return my_input
 
 
 
@@ -1061,7 +1084,9 @@ class Game():
         self.discard_pile_card = deck.draw()
         #start the game
         for p in self.players:
-            p.flip_two()
+            exited = p.flip_two()
+            if exited == "exit":
+                return
         #variables needed to know the state of the round
         round_over = False
         someone_went_out = False
@@ -1099,9 +1124,13 @@ class Game():
 
                     if not last_turn:
                         someone_went_out = p.take_turn(deck, self.discard_pile_card, opponents)
+                        if someone_went_out == "exit":
+                            return
                         self.discard_pile_card = p.card_discarded
                     else:
-                        p.take_last_turn(deck, self.discard_pile_card, opponents)#likely don't need opponents, just here for now for debugging
+                        exited = p.take_last_turn(deck, self.discard_pile_card, opponents)#likely don't need opponents, just here for now for debugging
+                        if exited == "exit":
+                            return
                         self.discard_pile_card = p.card_discarded
 
                     if someone_went_out and not last_turn:
@@ -1261,7 +1290,9 @@ class Evolution():
         #load button
         self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
         #save button
-        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save Population", command = self.save))
+        #save best player button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save Best Player", command = self.save_best))
 
         #add all buttons to the frame
         for b in self.btn_frame_buttons:
@@ -1370,6 +1401,24 @@ class Evolution():
             line += "\n"
             writer.write(line)
 
+    def save_best(self):
+        #save button
+        if debugging:
+            print("Save button pressed")
+        with open(filedialog.asksaveasfilename(defaultextension = ".txt", initialdir = "Saves/Players"), 'w') as writer:
+            writer.write(str(0) + "\n")
+            writer.write(str(0) + "\n")
+            writer.write(str(0) + "\n")
+            #now need to save best stats
+            line = ""
+            for g in self.best_early.genes:
+                line += str(g) + "/"
+            line += ","
+            for g in self.best_late.genes:
+                line += str(g) + "/"
+            line += "\n"
+            writer.write(line)
+
 
     def run(self, times_to_run = None):
         #create the first random population
@@ -1381,6 +1430,10 @@ class Evolution():
             self.paused = False
         while not self.paused:
             #add one to generations
+            if self.generations % 10 == 0 and self.generations != 0:
+                self.mutation_rate += 0.0005
+                if debugging:
+                    print("Mutation rate increased")
             self.generations += 1
             if debugging:
                 print("Generation: " + str(self.generations))
@@ -1718,24 +1771,9 @@ class Fights():
         self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
         self.lbl_frame_labels[19]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
 
-class Evolving_Fights():
-    def __init__(self):
-        self.start()
-
-    def start(self):
-        #make a genetic algorithm run for 150 generations
-        genetic = Evolution(False)
-        print("Running Evolution")
-        genetic.run(50)
-        #pool = genetic.population #if its entire pool
-        pool = Player(genetic.best_early, genetic.best_late)#use best dna from evolution as a starting point
-        print("Best score is: " + str(genetic.best_score))
-        fighting = Fights(pool)
-        fighting.start()
 
 
-
-class WindowManager:
+class WindowManager: #This class and the instances of it are copied and pasted from SimKev2 on stack overflow
     def __init__(self):
         self._handle = None
 
@@ -1753,8 +1791,8 @@ class WindowManager:
         win32gui.SetWindowPos(self._handle,win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE + win32con.SWP_NOSIZE)  
         win32gui.SetWindowPos(self._handle,win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE + win32con.SWP_NOSIZE)  
         win32gui.SetWindowPos(self._handle,win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_SHOWWINDOW + win32con.SWP_NOMOVE + win32con.SWP_NOSIZE)
-        shell = win32com.client.Dispatch("WScript.Shell")
-        shell.SendKeys('%')
+        #shell = win32com.client.Dispatch("WScript.Shell")
+        #shell.SendKeys('%')           turns out this is not needed, and when I have it in it makes windows diplay numlock icon (but not change numlock)
         win32gui.SetForegroundWindow(self._handle)
 
     def find_and_set(self, search):
@@ -1877,14 +1915,12 @@ if __name__ == '__main__':
 
 """
 Known bugs:
-Cannot choose from an empty sequence after first generation when choosing from mating pool
-Forced to flip when playing as user when only one is left unflipped
+Cannot choose from an empty sequence after first generation when choosing from mating pool - only happened for evolving fights, which I got rid of
 When playing as user my score was calculated wrong 2 times I played
 
 What I have left to do:
-Fix bugs for genetic part, not sure what it is yet, but it's there
+Just maybe add tournament
 
 Other idea:
 Add in tournament style version
-Should definetely make initial window where you choose btwn evolve, fight, evofight, and later tournament
 """
