@@ -914,6 +914,8 @@ class User(Player):
 
     def take_turn(self, deck, discarded, opponents):
         draw_card = self.get_input("Enter draw to draw a card, or keep to use the discarded card ", ["draw", "keep"])
+        if draw_card == "exit":
+            return "exit"
         if draw_card == "draw":
             #check if we're supposed to flip
             flip = True
@@ -988,6 +990,7 @@ class User(Player):
 
 
     def get_input(self, message, valid_inputs, is_int = False):
+        nums = ["1", "2", "3", "4"]
         if is_int:
             real_valid = [x + 1 for x in valid_inputs]
         else:
@@ -996,7 +999,7 @@ class User(Player):
         my_input = input(message)
         if my_input == "exit":
             return "exit"
-        if is_int:
+        if is_int and my_input in nums:
             my_input = int(my_input) - 1
         else:
             my_input = my_input.lower()
@@ -1005,7 +1008,7 @@ class User(Player):
             my_input = input(message)
             if my_input == "exit":
                 return "exit"
-            if is_int:
+            if is_int and my_input in nums:
                 my_input = int(my_input) - 1
             else:
                 my_input = my_input.lower()
@@ -1072,7 +1075,9 @@ class Game():
     def play_one_game(self):
         game_done = False
         for i in range(9):
-            self.play_round()
+            done = self.play_round()
+            if done == "exit":
+                return
         self.end_game()
 
     def play_round(self):
@@ -1086,7 +1091,7 @@ class Game():
         for p in self.players:
             exited = p.flip_two()
             if exited == "exit":
-                return
+                return "exit"
         #variables needed to know the state of the round
         round_over = False
         someone_went_out = False
@@ -1125,12 +1130,12 @@ class Game():
                     if not last_turn:
                         someone_went_out = p.take_turn(deck, self.discard_pile_card, opponents)
                         if someone_went_out == "exit":
-                            return
+                            return "exit"
                         self.discard_pile_card = p.card_discarded
                     else:
                         exited = p.take_last_turn(deck, self.discard_pile_card, opponents)#likely don't need opponents, just here for now for debugging
                         if exited == "exit":
-                            return
+                            return "exit"
                         self.discard_pile_card = p.card_discarded
 
                     if someone_went_out and not last_turn:
