@@ -191,14 +191,17 @@ class Board():
 
     def get_score(self):
         score = 0
-        matches = [] #could probably use new matches function here
+        matches = []
         for i in range(4):
-            if self.get_state(i) == Board.BOTH_FLIPPED:
-                score += self.cards[i][0].value + self.cards[i][1].value
-            elif self.get_state(i) == Board.BOTH_MATCH:
+            #If they match
+            if self.cards[i][0].value == self.cards[i][1].value: #interesting note, could probably use walrus operator here
+                #if they're jokers, subtract 10 instead of just adding 0
                 if self.cards[i][0].value == -5:
                     score -= 10
                 matches.append(self.cards[i][0].value)
+            else:
+                #otherwise they don't match, so add the value of each card
+                score += self.cards[i][0].value + self.cards[i][1].value
         for val in matches:
             if matches.count(val) > 1:
                 for i in range(matches.count(val)):
@@ -1075,6 +1078,9 @@ class Game():
     def play_one_game(self):
         game_done = False
         for i in range(9):
+            print("")
+            print("Starting round " + str(i + 1))
+            print("")
             done = self.play_round()
             if done == "exit":
                 return
