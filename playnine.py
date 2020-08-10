@@ -1079,7 +1079,8 @@ class Game():
         game_done = False
         for i in range(9):
             print("")
-            print("Starting round " + str(i + 1))
+            if self.show_text:
+                print("Starting round " + str(i + 1))
             print("")
             done = self.play_round()
             if done == "exit":
