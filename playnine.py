@@ -1078,10 +1078,10 @@ class Game():
     def play_one_game(self):
         game_done = False
         for i in range(9):
-            print("")
             if self.show_text:
+                print("")        
                 print("Starting round " + str(i + 1))
-            print("")
+                print("")
             done = self.play_round()
             if done == "exit":
                 return
