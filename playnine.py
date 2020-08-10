@@ -1309,7 +1309,7 @@ class Evolution():
         #mutation rate label
         self.btn_frame_buttons.append(tk.Label(master = self.btn_frm, text = "Mutation rate:"))
         #mutation rate spinbox
-        self.btn_frame_buttons.append(tk.Spinbox(master = self.btn_frm, from_ = 0, to = 1, increment = 0.001, command = self.spin))
+        self.btn_frame_buttons.append(tk.Spinbox(master = self.btn_frm, from_ = 0, to = 1, increment = 0.001, width = 6, command = self.spin))
         self.btn_frame_buttons[6].delete(0,"end")
         self.btn_frame_buttons[6].insert(0,0.01)
 
