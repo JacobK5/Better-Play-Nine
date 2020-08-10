@@ -216,8 +216,8 @@ class DNA():
         """
         the traits, in order, are:
         horizontal or vertical: if it prefers flipping with a flipped card or a new col
-        lowest to take (from discard): lowest number it will take from the discard pile
-        lowest to keep (fron deck): lowest number it will keep from the deck
+        highest to take (from discard): lowest number it will take from the discard pile
+        highest to keep (fron deck): lowest number it will keep from the deck
         lowest to mitigate: lowest amount you need to save for it to mitigate
         higest card to go for -10 with
         end
@@ -247,8 +247,8 @@ class DNA():
 
     def print(self):
         print("horizontal preference: " + str(self.genes[0]))
-        print("lowest to take (from discard):: " + str(self.genes[1]))
-        print("lowest to keep (fron deck): " + str(self.genes[2]))
+        print("highest to take (from discard):: " + str(self.genes[1]))
+        print("highest to keep (fron deck): " + str(self.genes[2]))
         print("lowest to mitigate: " + str(self.genes[3]))
         print("higest card to go for -10 with: " + str(self.genes[4]))
         print("end: " + str(self.genes[5]))
@@ -285,8 +285,8 @@ class Player():
         early_iterator = iter(self.earlyDNA.genes)
         self.early = {
             "horizontal preference": next(early_iterator),
-            "lowest to take": next(early_iterator),
-            "lowest to keep": next(early_iterator),
+            "highest to take": next(early_iterator),
+            "highest to keep": next(early_iterator),
             "lowest to mitigate": next(early_iterator),
             "highest for -10": next(early_iterator),
             "end": next(early_iterator)
@@ -294,8 +294,8 @@ class Player():
         late_iterator = iter(self.lateDNA.genes)
         self.late = {
             "horizontal preference": next(late_iterator),
-            "lowest to take": next(late_iterator),
-            "lowest to keep": next(late_iterator),
+            "highest to take": next(late_iterator),
+            "highest to keep": next(late_iterator),
             "lowest to mitigate": next(late_iterator),
             "highest for -10": next(late_iterator),
             "end for -10": next(late_iterator),
@@ -371,12 +371,12 @@ class Player():
         if debugging:
             print("Starting the turn, stage is: " + str(stage))
             print("Checking discarded card")
-        turn_done = self.check_card(discarded, stage, part.get("lowest to take"), part, replace_minus10)
+        turn_done = self.check_card(discarded, stage, part.get("highest to take"), part, replace_minus10)
         if not turn_done:
             if debugging:
                 print("Didn't use discarded card, drawing a card")
             card_drawn = deck.draw()
-            turn_done = self.check_card(card_drawn, stage, part.get("lowest to keep"), part, replace_minus10)
+            turn_done = self.check_card(card_drawn, stage, part.get("highest to keep"), part, replace_minus10)
         if not turn_done:
             if not stage == 3:
                 if debugging:
@@ -401,12 +401,12 @@ class Player():
             print("checking discarded card")
         #really this should be a lot more complex than I'll make it initially
         #it should change depending on if you still need to make matches
-        turn_done = self.check_card(discarded, 4, self.late.get("lowest to keep"), self.late, True)
+        turn_done = self.check_card(discarded, 4, self.late.get("highest to keep"), self.late, True)
         if not turn_done:
             if debugging:
                 print("Didn't take discarded card, so drawing a card")
             card_drawn = deck.draw()
-            turn_done = self.check_card(card_drawn, 4, self.late.get("lowest to keep"), self.late, True)
+            turn_done = self.check_card(card_drawn, 4, self.late.get("highest to keep"), self.late, True)
         if not turn_done:
             if debugging:
                 print("Didn't use drawn card so just discarding")
@@ -759,7 +759,7 @@ class Player():
                         print("Matching saves less than mitigating")
             #if no match or match saves less than mitigating, we either mitigate a flipped card (if it's above 5) or an unflipped card, or draw
             #if card is from discard or is below -5
-            if lowest == part.get("lowest to take") or card.value < 5:
+            if lowest == part.get("highest to take") or card.value < 5:
                 #then mitigate at all if we can
                 if self.board.get_highest_unmatched() != None:
                     if card.value < self.board.get_highest_unmatched():
@@ -1112,7 +1112,8 @@ class Game():
             if len(self.scores_check) > 1000:
                 if self.scores_check[len(self.scores_check) - 1000] == self.scores_check[len(self.scores_check) - 1]:
                     self.players[0].late["highest to go out with"] = 10
-                    print("Made someone go out cuz game was never changing")
+                    if debugging:
+                        print("Made someone go out cuz game was never changing")
             for i in range(len(self.players)):
                 #check if deck is empty
                 if len(deck.cards) == 0:
@@ -1215,7 +1216,7 @@ class Evolution():
         self.first_run = True
 
         #for stats
-        self.best_score = 150
+        self.best_fitness = 0
         self.average_score = None
         self.total_of_scores = 0
         self.total_scores = 0
@@ -1248,19 +1249,19 @@ class Evolution():
         #generations
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Generations: 0"))
         #best score
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best score: Waiting for first run"))
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best fitness: Waiting for first run"))
         #average score
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Average score: Waiting for first run"))
         #best genes
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes:"))
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Best genes of generation:"))
         #early genes
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Early:"))
         #horizontal preference (true or false)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
-        #lowest to take (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
-        #lowest to keep (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
         #lowest to mitigate (btwn 0 and 12)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
         #highest for -10 (btwn 0 and 12)
@@ -1273,10 +1274,10 @@ class Evolution():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
         #horizontal preference (true or false)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
-        #lowest to take (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
-        #lowest to keep (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
         #lowest to mitigate (btwn 0 and 12)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
         #highest for -10 (btwn 0 and 12)
@@ -1305,6 +1306,12 @@ class Evolution():
         self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save Population", command = self.save))
         #save best player button
         self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save Best Player", command = self.save_best))
+        #mutation rate label
+        self.btn_frame_buttons.append(tk.Label(master = self.btn_frm, text = "Mutation rate:"))
+        #mutation rate spinbox
+        self.btn_frame_buttons.append(tk.Spinbox(master = self.btn_frm, from_ = 0, to = 1, increment = 0.001, command = self.spin))
+        self.btn_frame_buttons[6].delete(0,"end")
+        self.btn_frame_buttons[6].insert(0,0.01)
 
         #add all buttons to the frame
         for b in self.btn_frame_buttons:
@@ -1313,10 +1320,6 @@ class Evolution():
         #add the frames to the window
         self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
         self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
-
-
-        #start up the window loop
-        #self.window.mainloop()
 
 
     def start(self):
@@ -1340,6 +1343,8 @@ class Evolution():
         #load button
         if debugging:
             print("Load button pressed")
+        #we dont want the population to be randomized if we load a pop in right away
+        self.first_run = False
         new_pop = []
         with open(filedialog.askopenfilename(defaultextension = ".txt", initialdir = "Saves/Populations"), 'r') as reader:
             for line in reader:
@@ -1362,7 +1367,7 @@ class Evolution():
                 #now add player to new pop with those genes
                 new_pop.append(Player(DNA(new_early), DNA(new_late)))
                 #Player(DNA(early), DNA(late)) will be the format
-            self.best_score = int(reader.readline().strip())
+            self.best_fitness = int(reader.readline().strip())
             self.average_score = float(reader.readline().strip())
             self.population = new_pop
             self.population_size = len(new_pop)
@@ -1401,7 +1406,7 @@ class Evolution():
                 line += "\n"
                 writer.write(line)
             writer.write(str(self.generations) + "\n")
-            writer.write(str(self.best_score) + "\n")
+            writer.write(str(self.best_fitness) + "\n")
             writer.write(str(self.average_score) + "\n")
             #now need to save best stats
             line = ""
@@ -1412,6 +1417,7 @@ class Evolution():
                 line += str(g) + "/"
             line += "\n"
             writer.write(line)
+
 
     def save_best(self):
         #save button
@@ -1432,46 +1438,44 @@ class Evolution():
             writer.write(line)
 
 
-    def run(self, times_to_run = None):
-        #create the first random population
+    def spin(self):
+        self.mutation_rate = float(self.btn_frame_buttons[6].get())
+
+
+    def run(self):
+        #create the first random population if it's the first run
         if self.first_run:
             for i in range(self.population_size):
                 self.population.append(Player())
             self.first_run = False
-        if times_to_run != None:
-            self.paused = False
         while not self.paused:
             #add one to generations
-            if self.generations % 10 == 0 and self.generations != 0:
-                self.mutation_rate += 0.0005
-                if debugging:
-                    print("Mutation rate increased")
             self.generations += 1
             if debugging:
                 print("Generation: " + str(self.generations))
-            #see if we wanna stop
-            if times_to_run != None:
-                if self.generations > times_to_run - 1:
-                    self.paused = True #for this to really work I need this to not display the window while it goes I think, maybe not tho
             #clear the old games
             self.games.clear()
             #fill up the games
             for i in range(0, self.population_size - 1, 2):
                 self.games.append(Game(False, debugging, self.population[i], self.population[i + 1]))
-            #play the games
             if debugging:
                 print("Games size: " + str(len(self.games)))
-
+            #play the games
             for g in self.games:
                 g.play()
-            #calculate all the fitnesses, add to mating pool
+            #reset total of scores, total scores, and best fitness
+            self.best_fitness = 0
+            self.total_of_scores = 0
+            self.total_scores = 0
             self.mating_pool.clear()
+            #calculate all the fitnesses, add to mating pool
             for i in range(len(self.population)):
                 p = self.population[i]
                 #make array of opponents
                 opponents = []
                 if debugging:
                     print("Score is " + str(p.board.get_score()))
+                #if the player's index is even, the opponent was at the player's index plus one
                 if i % 2 == 0:
                     opponents.append(self.population[i + 1])
                     if debugging:
@@ -1484,8 +1488,8 @@ class Evolution():
                 for i in range(fitness):
                     self.mating_pool.append(p)
                 #check if fitness is a new record
-                if p.board.get_score() < self.best_score:
-                    self.best_score = p.board.get_score()
+                if fitness > self.best_fitness:
+                    self.best_fitness = fitness
                     self.best_early = DNA(p.earlyDNA.genes)
                     self.best_late = DNA(p.lateDNA.genes)
                 #adjust average score
@@ -1520,18 +1524,18 @@ class Evolution():
 
     def update_window(self):
         self.lbl_frame_labels[0]["text"] = "Generations: " + str(self.generations)
-        self.lbl_frame_labels[1]["text"] = "Best score: " + str(self.best_score)
+        self.lbl_frame_labels[1]["text"] = "Best fitness: " + str(self.best_fitness)
         self.lbl_frame_labels[2]["text"] = "Average score: " + str(self.average_score)
         self.lbl_frame_labels[5]["text"] = "horizontal preference: " + str(self.best_early.genes[0])
-        self.lbl_frame_labels[6]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
-        self.lbl_frame_labels[7]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
+        self.lbl_frame_labels[6]["text"] = "highest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
+        self.lbl_frame_labels[7]["text"] = "highest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
         self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
         self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
         self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
         self.lbl_frame_labels[11]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
         self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
-        self.lbl_frame_labels[14]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
-        self.lbl_frame_labels[15]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
+        self.lbl_frame_labels[14]["text"] = "highest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
+        self.lbl_frame_labels[15]["text"] = "highest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
         self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
         self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
         self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
@@ -1572,7 +1576,7 @@ class Fights():
         #set up window basics
         self.stat_frm = tk.Frame(master = self.master, width=100, height=100)
         self.btn_frm = tk.Frame(master = self.master, width=100, height=100)
-        self.title_lbl = tk.Label(master = self.master, text = "PlayNine Evolution", fg = "black", width = 20, height = 3)
+        self.title_lbl = tk.Label(master = self.master, text = "PlayNine Fights", fg = "black", width = 20, height = 3)
         #self.window.configure(background="white")
         # self.stat_frm.config(bg = "white")
         # self.btn_frm.config(bg = "white")
@@ -1592,10 +1596,10 @@ class Fights():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Early:"))
         #horizontal preference (true or false)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
-        #lowest to take (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
-        #lowest to keep (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
         #lowest to mitigate (btwn 0 and 12)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
         #highest for -10 (btwn 0 and 12)
@@ -1608,10 +1612,10 @@ class Fights():
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Late:"))
         #horizontal preference (true or false)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "horizontal preference: Waiting for first run"))
-        #lowest to take (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to take (btwn 0 and 12): Waiting for first run"))
-        #lowest to keep (btwn 0 and 12)
-        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to keep (btwn 0 and 12): Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
         #lowest to mitigate (btwn 0 and 12)
         self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
         #highest for -10 (btwn 0 and 12)
@@ -1646,8 +1650,7 @@ class Fights():
         #add the frames to the window
         self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
         self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
-        #start up the window loop
-        #self.window.mainloop()
+
 
     def start(self):
         #start button
@@ -1691,7 +1694,6 @@ class Fights():
         self.best_late.genes = new_best_late
         self.fighter = Player(DNA(new_best_early), DNA(new_best_late))
         self.update_window()
-        print("loaded player")
         if debugging:
             print("File read")
 
@@ -1735,7 +1737,7 @@ class Fights():
                 opponent = choice(self.pool)
                 opponent.mutate(0.01)
             #make the game and play it
-            game = Game(False, debugging, self.fighter, opponent, 5)
+            game = Game(False, debugging, self.fighter, opponent, self.out_of)
             game.play()
             if self.fighter.winner:
                 winner = self.fighter
@@ -1769,19 +1771,288 @@ class Fights():
         self.lbl_frame_labels[1]["text"] = "Current Player's Fights: " + str(self.current_players_fights)
         self.lbl_frame_labels[2]["text"] = "Most Wins: " + str(self.most_wins)
         self.lbl_frame_labels[5]["text"] = "horizontal preference: " + str(self.best_early.genes[0])
-        self.lbl_frame_labels[6]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
-        self.lbl_frame_labels[7]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
+        self.lbl_frame_labels[6]["text"] = "highest to take (btwn 0 and 12): " + str(self.best_early.genes[1])
+        self.lbl_frame_labels[7]["text"] = "highest to keep (btwn 0 and 12): " + str(self.best_early.genes[2])
         self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_early.genes[3])
         self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_early.genes[4])
         self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.best_early.genes[5])
         self.lbl_frame_labels[11]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_early.genes[6])
         self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.best_late.genes[0])
-        self.lbl_frame_labels[14]["text"] = "lowest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
-        self.lbl_frame_labels[15]["text"] = "lowest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
+        self.lbl_frame_labels[14]["text"] = "highest to take (btwn 0 and 12): " + str(self.best_late.genes[1])
+        self.lbl_frame_labels[15]["text"] = "highest to keep (btwn 0 and 12): " + str(self.best_late.genes[2])
         self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.best_late.genes[3])
         self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.best_late.genes[4])
         self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.best_late.genes[5])
         self.lbl_frame_labels[19]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.best_late.genes[6])
+
+
+
+class Head_2_Head:
+    def __init__(self, master):
+        self.master = master
+        self.player1 = Player()
+        self.player2 = Player()
+        self.total_games = 0
+        self.player1_wins = 0
+        self.player2_wins = 0
+        self.paused = True
+        self.make_window()
+
+    def make_window(self):
+        #set up window basics
+        self.stat_frm = tk.Frame(master = self.master, width=100, height=100)
+        self.p1_frm = tk.Frame(master = self.stat_frm, width=100, height=100)
+        self.p2_frm = tk.Frame(master = self.stat_frm, width=100, height=100)
+        self.btn_frm = tk.Frame(master = self.master, width=100, height=100)
+        self.title_lbl = tk.Label(master = self.master, text = "PlayNine Head 2 Head", fg = "black", width = 20, height = 3)
+        #self.window.configure(background="white")
+        # self.stat_frm.config(bg = "white")
+        # self.btn_frm.config(bg = "white")
+        # self.title_lbl.config(bg = "white")
+        self.title_lbl.pack(anchor = "center")
+        #set up label frame
+        self.lbl_frame_labels = []
+        #total games
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Total Games: 0"))
+        #p1 wins
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Player 1 wins: 0"))
+        #p2 wins
+        self.lbl_frame_labels.append(tk.Label(self.stat_frm, text = "Player 2 wins: 0"))
+        #p1 genes
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "Player 1's genes:"))
+        #early genes
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "Early:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "horizontal preference: Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "end (btwn 1 and 6): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
+        #late genes
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "Late:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "horizontal preference: Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end for -10 (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.p1_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
+        #p2 genes
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "Player 2's genes:"))
+        #early genes
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "Early:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "horizontal preference: Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "end (btwn 1 and 6): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
+        #late genes
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "Late:"))
+        #horizontal preference (true or false)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "horizontal preference: Waiting for first run"))
+        #highest to take (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest to take (btwn 0 and 12): Waiting for first run"))
+        #highest to keep (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest to keep (btwn 0 and 12): Waiting for first run"))
+        #lowest to mitigate (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "lowest to mitigate (btwn 0 and 12): Waiting for first run"))
+        #highest for -10 (btwn 0 and 12)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest for -10 (btwn 0 and 12): Waiting for first run"))
+        #end for -10 (btwn 1 and 6)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "end for -10 (btwn 1 and 6): Waiting for first run"))
+        #highest to go out with (btwn -9 and 20)
+        self.lbl_frame_labels.append(tk.Label(self.p2_frm, text = "highest to go out with (btwn -9 and 20): Waiting for first run"))
+
+        #add all labels to the frame
+        for i in range(len(self.lbl_frame_labels)):
+            if i < 3:
+                self.lbl_frame_labels[i].pack(anchor = "center")
+            else:
+                self.lbl_frame_labels[i].pack(anchor = "w")
+            #l.config(bg = "white")
+            if debugging:
+                l.config(borderwidth=1, relief="solid")
+
+        #set up button frame
+        self.btn_frame_buttons = []
+        #start button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Start", command = self.start))
+        #stop button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Stop", command = self.stop))
+        #load button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load P1", command = self.load1))
+        #save button
+        self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load P2", command = self.load2))
+
+        #add all buttons to the frame
+        for b in self.btn_frame_buttons:
+            b.pack()
+
+        #add the frames to the window
+        self.btn_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+        self.stat_frm.pack(fill=tk.BOTH, side=tk.RIGHT)
+        self.p1_frm.pack(fill=tk.BOTH, side=tk.LEFT)
+        self.p2_frm.pack(fill=tk.BOTH, side=tk.LEFT)
+
+
+    def start(self):
+        #start button
+        if debugging:
+            print("Start button pressed")
+        #make paused false, call run
+        self.paused = False
+        self.run()
+
+    def stop(self):
+        #stop button
+        if debugging:
+            print("Stop button pressed")
+        #make paused true
+        self.paused = True
+
+
+    def load1(self):
+        #load button
+        if debugging:
+            print("Load button pressed")
+        #reset stats
+        self.total_games = 0
+        self.player1_wins = 0
+        self.player2_wins = 0
+        with open(filedialog.askopenfilename(defaultextension = ".txt", initialdir = "Saves/Players"), 'r') as reader:
+            #skip general stats
+            for i in range(3):
+                reader.readline()
+            #now need to load in the genes
+            new_early = []
+            new_late = []
+            genes = reader.readline().split(",")
+            early = genes[0].split("/")
+            late = genes[1].split("/")
+            new_early.append(early[0] == "True")
+            for i in range(6):
+                new_early.append(int(early[i + 1]))
+            #do the same for late
+            new_late.append(late[0] == "True")
+            for i in range(6):
+                new_late.append(int(late[i + 1]))
+        self.player1 = Player(DNA(new_early), DNA(new_late))
+        self.update_window()
+        if debugging:
+            print("File read")
+
+
+    def load2(self):
+        #load button
+        if debugging:
+            print("Load button pressed")
+        #reset stats
+        self.total_games = 0
+        self.player1_wins = 0
+        self.player2_wins = 0
+        with open(filedialog.askopenfilename(defaultextension = ".txt", initialdir = "Saves/Players"), 'r') as reader:
+            #skip general stats
+            for i in range(3):
+                reader.readline()
+            #now need to load in the genes
+            new_early = []
+            new_late = []
+            genes = reader.readline().split(",")
+            early = genes[0].split("/")
+            late = genes[1].split("/")
+            new_early.append(early[0] == "True")
+            for i in range(6):
+                new_early.append(int(early[i + 1]))
+            #do the same for late
+            new_late.append(late[0] == "True")
+            for i in range(6):
+                new_late.append(int(late[i + 1]))
+        self.player2 = Player(DNA(new_early), DNA(new_late))
+        self.update_window()
+        if debugging:
+            print("File read")
+
+
+    def run(self):
+        while not self.paused:
+            #make the game
+            game = Game(False, debugging, self.player1, self.player2)
+            #play the game
+            game.play()
+            #add to total games
+            self.total_games += 1
+            #see who won
+            if self.player1.winner:
+                self.player1_wins += 1
+            elif self.player2.winner:
+                self.player2_wins += 1
+            #update the window
+            self.update_window()
+            self.master.update()
+
+
+    def update_window(self):
+        self.lbl_frame_labels[0]["text"] = "Total Games: " + str(self.total_games)
+        if self.total_games == 0:
+            self.lbl_frame_labels[1]["text"] = "Player 1 wins: 0"
+            self.lbl_frame_labels[2]["text"] = "Player 2 wins: 0"
+        else:
+            self.lbl_frame_labels[1]["text"] = "Player 1 wins: " + str(self.player1_wins) + " (" + str(round((self.player1_wins / self.total_games * 100))) + "%)"
+            self.lbl_frame_labels[2]["text"] = "Player 2 wins: " + str(self.player2_wins) + " (" + str(round((self.player2_wins / self.total_games * 100))) + "%)"
+        self.lbl_frame_labels[5]["text"] = "horizontal preference: " + str(self.player1.earlyDNA.genes[0])
+        self.lbl_frame_labels[6]["text"] = "highest to take (btwn 0 and 12): " + str(self.player1.earlyDNA.genes[1])
+        self.lbl_frame_labels[7]["text"] = "highest to keep (btwn 0 and 12): " + str(self.player1.earlyDNA.genes[2])
+        self.lbl_frame_labels[8]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.player1.earlyDNA.genes[3])
+        self.lbl_frame_labels[9]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.player1.earlyDNA.genes[4])
+        self.lbl_frame_labels[10]["text"] = "end (btwn 1 and 6): " + str(self.player1.earlyDNA.genes[5])
+        self.lbl_frame_labels[11]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.player1.earlyDNA.genes[6])
+        self.lbl_frame_labels[13]["text"] = "horizontal preference: " + str(self.player1.lateDNA.genes[0])
+        self.lbl_frame_labels[14]["text"] = "highest to take (btwn 0 and 12): " + str(self.player1.lateDNA.genes[1])
+        self.lbl_frame_labels[15]["text"] = "highest to keep (btwn 0 and 12): " + str(self.player1.lateDNA.genes[2])
+        self.lbl_frame_labels[16]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.player1.lateDNA.genes[3])
+        self.lbl_frame_labels[17]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.player1.lateDNA.genes[4])
+        self.lbl_frame_labels[18]["text"] = "end (btwn 1 and 6): " + str(self.player1.lateDNA.genes[5])
+        self.lbl_frame_labels[19]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.player1.lateDNA.genes[6])
+        self.lbl_frame_labels[22]["text"] = "horizontal preference: " + str(self.player2.earlyDNA.genes[0])
+        self.lbl_frame_labels[23]["text"] = "highest to take (btwn 0 and 12): " + str(self.player2.earlyDNA.genes[1])
+        self.lbl_frame_labels[24]["text"] = "highest to keep (btwn 0 and 12): " + str(self.player2.earlyDNA.genes[2])
+        self.lbl_frame_labels[25]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.player2.earlyDNA.genes[3])
+        self.lbl_frame_labels[26]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.player2.earlyDNA.genes[4])
+        self.lbl_frame_labels[27]["text"] = "end (btwn 1 and 6): " + str(self.player2.earlyDNA.genes[5])
+        self.lbl_frame_labels[28]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.player2.earlyDNA.genes[6])
+        self.lbl_frame_labels[30]["text"] = "horizontal preference: " + str(self.player2.lateDNA.genes[0])
+        self.lbl_frame_labels[31]["text"] = "highest to take (btwn 0 and 12): " + str(self.player2.lateDNA.genes[1])
+        self.lbl_frame_labels[32]["text"] = "highest to keep (btwn 0 and 12): " + str(self.player2.lateDNA.genes[2])
+        self.lbl_frame_labels[33]["text"] = "lowest to mitigate (btwn 0 and 12): " + str(self.player2.lateDNA.genes[3])
+        self.lbl_frame_labels[34]["text"] = "highest for -10 (btwn 0 and 12): " + str(self.player2.lateDNA.genes[4])
+        self.lbl_frame_labels[35]["text"] = "end (btwn 1 and 6): " + str(self.player2.lateDNA.genes[5])
+        self.lbl_frame_labels[36]["text"] = "highest to go out with (btwn -9 and 20): " + str(self.player2.lateDNA.genes[6])
+
+
 
 
 
@@ -1821,6 +2092,8 @@ class Main_Window:
         self.evolution.pack()
         self.fight = tk.Button(self.frame, text = "Fight", width = 15, height = 2, command = self.fight_button)
         self.fight.pack()
+        self.head2head = tk.Button(self.frame, text = "Head 2 Head", width = 15, height = 2, command = self.head2head_button)
+        self.head2head.pack()
         self.play_round = tk.Button(self.frame, text = "Play Round", width = 15, height = 2, command = self.play_round_button)
         self.play_round.pack()
         self.play_game = tk.Button(self.frame, text = "Play Nine", width = 15, height = 2, command = self.play_game_button)
@@ -1841,6 +2114,12 @@ class Main_Window:
         self.new_window.protocol("WM_DELETE_WINDOW", self.window_closed)
         self.master.withdraw()
         ft = Fights(self.new_window)
+
+    def head2head_button(self):
+        self.new_window = tk.Toplevel(self.master)
+        self.new_window.protocol("WM_DELETE_WINDOW", self.window_closed)
+        self.master.withdraw()
+        h2h = Head_2_Head(self.new_window)
 
     def play_round_button(self):
         self.game = False
@@ -1927,8 +2206,7 @@ if __name__ == '__main__':
 
 """
 Known bugs:
-Cannot choose from an empty sequence after first generation when choosing from mating pool - only happened for evolving fights, which I got rid of
-When playing as user my score was calculated wrong 2 times I played
+None so far!
 
 What I have left to do:
 Just maybe add tournament
