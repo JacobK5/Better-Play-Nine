@@ -2180,7 +2180,10 @@ class Main_Window:
                 lateDNA.append(int(late[i + 1]))
         #give focus to cmd
         w = WindowManager()
-        w.find_and_set(".*cmd.exe*")
+        try:
+            w.find_and_set(".*py.exe*")
+        except:
+            w.find_and_set(".*cmd.exe*")
         #now make and play the game
         game = Game(True, True, User(), Player(DNA(earlyDNA), DNA(lateDNA)))
         if self.game:
@@ -2193,7 +2196,10 @@ class Main_Window:
         self.new_window.destroy()
         #give focus to cmd
         w = WindowManager()
-        w.find_and_set(".*cmd.exe*")
+        try:
+            w.find_and_set(".*py.exe*")
+        except:
+            w.find_and_set(".*cmd.exe*")
         game = Game(True, True, User(), Player())
         if self.game:
             game.play()
