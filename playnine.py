@@ -875,13 +875,18 @@ class Player():
         return Player(new_early, new_late)
 
     def mutate(self, mutation_rate):
-        for i in range(len(self.earlyDNA.genes)):
-            if random() < mutation_rate:
-                self.earlyDNA.genes[i] = self.earlyDNA.random(i)
+        # for i in range(len(self.earlyDNA.genes)):
+        #     if random() < mutation_rate:
+        #         self.earlyDNA.genes[i] = self.earlyDNA.random(i)
 
-        for i in range(len(self.lateDNA.genes)):
-            if random() < mutation_rate:
-                self.lateDNA.genes[i] = self.lateDNA.random(i)
+        # for i in range(len(self.lateDNA.genes)):
+        #     if random() < mutation_rate:
+        #         self.lateDNA.genes[i] = self.lateDNA.random(i)
+        if random() < mutation_rate:
+            self.earlyDNA = DNA()
+            self.lateDNA = DNA()
+            if debugging:
+                print("Mutated")
 
 
 
