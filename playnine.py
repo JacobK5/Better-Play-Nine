@@ -1647,6 +1647,12 @@ class Fights():
         self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Load", command = self.load))
         #save button
         self.btn_frame_buttons.append(tk.Button(master = self.btn_frm, text = "Save", command = self.save))
+        #out of label
+        self.btn_frame_buttons.append(tk.Label(master = self.btn_frm, text = "Best out of:"))
+        #out of spinbox
+        self.btn_frame_buttons.append(tk.Spinbox(master = self.btn_frm, from_ = 1, to = 501, increment = 2, width = 6, command = self.spin))
+        self.btn_frame_buttons[5].delete(0,"end")
+        self.btn_frame_buttons[5].insert(0,5)
 
         #add all buttons to the frame
         for b in self.btn_frame_buttons:
@@ -1720,6 +1726,10 @@ class Fights():
                 line += str(g) + "/"
             line += "\n"
             writer.write(line)
+
+
+    def spin(self):
+        self.out_of = int(self.btn_frame_buttons[5].get())
 
 
     def run(self):
